@@ -1,13 +1,13 @@
-importScripts("worker-protocol.js", "worker/min-heap.js", "worker/messages.js", "worker/algorithms.js");
+importScripts("worker-message-protocol.js", "worker/worker-heap.js", "worker/worker-messages.js", "worker/worker-algorithms.js");
 
-const { generateMaze, solveMaze } = self.MazeWorkerAlgorithms;
+const { runGenerateRequest, runSolveRequest } = self.MazeWorkerAlgorithms;
 const {
     MESSAGE_TYPES,
     pauseWorker,
-    postError,
-    postGenerated,
-    postSolved,
-    postVisitedBatch,
+    postGenerateRequestResult,
+    postRequestFailure,
+    postSolveRequestProgress,
+    postSolveRequestResult,
 } = self.MazeWorkerMessages;
 
 const canceledRequests = new Set();
@@ -21,18 +21,18 @@ self.addEventListener("message", (event) => {
     }
 
     if (message.type === MESSAGE_TYPES.generate) {
-        void handleGenerate(message);
+        void handleGenerateRequest(message);
         return;
     }
 
     if (message.type === MESSAGE_TYPES.solve) {
-        void handleSolve(message);
+        void handleSolveRequest(message);
     }
 });
 
-async function handleGenerate(message) {
+async function handleGenerateRequest(message) {
     try {
-        const result = await generateMaze(message.size, message.requestId, {
+        const result = await runGenerateRequest(message.size, message.requestId, {
             isCanceled,
             pauseWorker,
         });
@@ -41,16 +41,16 @@ async function handleGenerate(message) {
             return;
         }
 
-        postGenerated(message.requestId, message.size, result);
+        postGenerateRequestResult(message.requestId, message.size, result);
         clearCanceled(message.requestId);
     } catch (error) {
-        postError(message.requestId, error, clearCanceled);
+        postRequestFailure(message.requestId, error, clearCanceled);
     }
 }
 
-async function handleSolve(message) {
+async function handleSolveRequest(message) {
     try {
-        const pathIds = await solveMaze(
+        const pathIds = await runSolveRequest(
             message.grid,
             message.size,
             message.startId,
@@ -60,7 +60,7 @@ async function handleSolve(message) {
             {
                 isCanceled,
                 pauseWorker,
-                postVisitedBatch,
+                postSolveRequestProgress,
             },
         );
 
@@ -69,10 +69,10 @@ async function handleSolve(message) {
             return;
         }
 
-        postSolved(message.requestId, pathIds);
+        postSolveRequestResult(message.requestId, pathIds);
         clearCanceled(message.requestId);
     } catch (error) {
-        postError(message.requestId, error, clearCanceled);
+        postRequestFailure(message.requestId, error, clearCanceled);
     }
 }
 

@@ -1,4 +1,4 @@
-(function initializeMazeWorkerProtocol(rootScope) {
+(function initializeMazeWorkerMessageProtocol(rootScope) {
     const MESSAGE_TYPES = {
         cancel: "cancel",
         error: "error",
@@ -9,7 +9,7 @@
         solved: "solved",
     };
 
-    rootScope.MazeWorkerProtocol = {
+    rootScope.MazeWorkerMessageProtocol = {
         MESSAGE_TYPES,
     };
 })(typeof self !== "undefined" ? self : window);

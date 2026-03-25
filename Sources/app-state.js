@@ -1,5 +1,5 @@
 (function initializeMazeAppState() {
-    const { DIFFICULTY_OPTIONS, STORAGE_KEY } = window.MazeAppConstants;
+    const { DIFFICULTY_OPTIONS, STORAGE_KEY } = window.MazeAppConfig;
 
     function createInitialState(selectedDifficulty) {
         return {
@@ -60,7 +60,7 @@
         state.visitedCount = requiredSize;
     }
 
-    function applyGeneratedResult(state, message) {
+    function applyGenerateRequestResult(state, message) {
         state.mazeGrid = message.grid;
         state.gridSize = message.size;
         state.startId = message.startId;
@@ -68,20 +68,20 @@
         resetAnimationState(state);
     }
 
-    function applyProgressResult(state, message) {
+    function applySolveProgressResult(state, message) {
         appendVisitedBatch(state, message.visitedIds);
         state.renderedVisitedCount = state.visitedCount;
     }
 
-    function applySolvedResult(state, message) {
+    function applySolveRequestResult(state, message) {
         state.shortestPath = message.pathIds;
         state.renderedPathCount = 0;
     }
 
     window.MazeAppState = {
-        applyGeneratedResult,
-        applyProgressResult,
-        applySolvedResult,
+        applyGenerateRequestResult,
+        applySolveProgressResult,
+        applySolveRequestResult,
         createInitialState,
         getStoredDifficulty,
         persistDifficulty,

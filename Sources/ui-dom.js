@@ -1,4 +1,4 @@
-(function initializeMazeDomElements() {
+(function initializeMazeUiDom() {
     function captureElements() {
         return {
             difficultySelect: document.getElementById("difficulty-select"),
@@ -31,7 +31,7 @@
         });
     }
 
-    window.MazeDomElements = {
+    window.MazeUiDom = {
         bindEvents,
         captureElements,
     };

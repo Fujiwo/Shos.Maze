@@ -1,7 +1,7 @@
 (function initializeMazeWorkerMessages(workerScope) {
-    const { MESSAGE_TYPES } = workerScope.MazeWorkerProtocol;
+    const { MESSAGE_TYPES } = workerScope.MazeWorkerMessageProtocol;
 
-    function postGenerated(requestId, size, result) {
+    function postGenerateRequestResult(requestId, size, result) {
         workerScope.postMessage(
             {
                 type: MESSAGE_TYPES.generated,
@@ -15,7 +15,7 @@
         );
     }
 
-    function postSolved(requestId, pathIds) {
+    function postSolveRequestResult(requestId, pathIds) {
         workerScope.postMessage(
             {
                 type: MESSAGE_TYPES.solved,
@@ -26,7 +26,7 @@
         );
     }
 
-    function postVisitedBatch(requestId, source, length) {
+    function postSolveRequestProgress(requestId, source, length) {
         const payload = new Int32Array(length);
         payload.set(source.subarray(0, length));
         workerScope.postMessage(
@@ -39,7 +39,7 @@
         );
     }
 
-    function postError(requestId, error, clearCanceled) {
+    function postRequestFailure(requestId, error, clearCanceled) {
         workerScope.postMessage({
             type: MESSAGE_TYPES.error,
             requestId,
@@ -57,9 +57,9 @@
     workerScope.MazeWorkerMessages = {
         MESSAGE_TYPES,
         pauseWorker,
-        postError,
-        postGenerated,
-        postSolved,
-        postVisitedBatch,
+        postGenerateRequestResult,
+        postRequestFailure,
+        postSolveRequestProgress,
+        postSolveRequestResult,
     };
 })(self);

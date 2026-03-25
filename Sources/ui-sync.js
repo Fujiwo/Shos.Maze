@@ -1,5 +1,5 @@
 (function initializeMazeUiSync() {
-    const { DIFFICULTY_OPTIONS, STATUS_LABELS } = window.MazeAppConstants;
+    const { DIFFICULTY_OPTIONS, STATUS_LABELS } = window.MazeAppConfig;
 
     function populateDifficultyOptions(elements, selectedDifficulty) {
         const select = elements.difficultySelect;

@@ -1,5 +1,5 @@
-(function initializeMazeAppConstants() {
-    const { MESSAGE_TYPES } = window.MazeWorkerProtocol;
+(function initializeMazeAppConfig() {
+    const { MESSAGE_TYPES } = window.MazeWorkerMessageProtocol;
 
     const DIFFICULTY_OPTIONS = {
         easy: { label: "Easy", size: 25 },
@@ -34,9 +34,9 @@
     };
 
     const STORAGE_KEY = "mazeApp.selectedDifficulty";
-    const WORKER_SCRIPT = "maze-worker.js";
+    const WORKER_SCRIPT = "worker-bootstrap.js";
 
-    window.MazeAppConstants = {
+    window.MazeAppConfig = {
         ANIMATION_CONFIG,
         DIFFICULTY_OPTIONS,
         MAZE_PALETTE,

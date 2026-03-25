@@ -1,7 +1,7 @@
-(function initializeMazeRenderer() {
-    const { MAZE_PALETTE } = window.MazeAppConstants;
+(function initializeMazeRenderCanvas() {
+    const { MAZE_PALETTE } = window.MazeAppConfig;
 
-    class MazeRenderer {
+    class MazeRenderCanvas {
         constructor(canvas, stageElement) {
             this.canvas = canvas;
             this.stageElement = stageElement;
@@ -250,5 +250,5 @@
         }
     }
 
-    window.MazeRenderer = MazeRenderer;
+    window.MazeRenderCanvas = MazeRenderCanvas;
 })();

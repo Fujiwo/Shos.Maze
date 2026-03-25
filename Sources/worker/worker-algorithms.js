@@ -1,7 +1,7 @@
 (function initializeMazeWorkerAlgorithms(workerScope) {
-    const MinHeap = workerScope.MazeWorkerMinHeap;
+    const WorkerHeap = workerScope.MazeWorkerHeap;
 
-    async function generateMaze(size, requestId, controls) {
+    async function runGenerateRequest(size, requestId, controls) {
         const { isCanceled, pauseWorker } = controls;
         const grid = new Uint8Array(size * size);
         const stack = [];
@@ -42,13 +42,13 @@
         return { grid, startId, goalId };
     }
 
-    async function solveMaze(grid, size, startId, goalId, batchSize, requestId, controls) {
-        const { isCanceled, pauseWorker, postVisitedBatch } = controls;
+    async function runSolveRequest(grid, size, startId, goalId, batchSize, requestId, controls) {
+        const { isCanceled, pauseWorker, postSolveRequestProgress } = controls;
         const totalCells = size * size;
         const cameFrom = new Int32Array(totalCells);
         const gScore = new Float64Array(totalCells);
         const closedSet = new Uint8Array(totalCells);
-        const openHeap = new MinHeap();
+        const openHeap = new WorkerHeap();
         let currentBatch = new Int32Array(batchSize);
         let currentBatchCount = 0;
         let iterationsSinceYield = 0;
@@ -79,7 +79,7 @@
 
             if (currentId === goalId) {
                 if (currentBatchCount > 0) {
-                    postVisitedBatch(requestId, currentBatch, currentBatchCount);
+                    postSolveRequestProgress(requestId, currentBatch, currentBatchCount);
                 }
                 return reconstructPath(cameFrom, goalId);
             }
@@ -104,7 +104,7 @@
             });
 
             if (currentBatchCount === currentBatch.length) {
-                postVisitedBatch(requestId, currentBatch, currentBatchCount);
+                postSolveRequestProgress(requestId, currentBatch, currentBatchCount);
                 currentBatch = new Int32Array(batchSize);
                 currentBatchCount = 0;
             }
@@ -113,7 +113,7 @@
             if (iterationsSinceYield >= batchSize) {
                 iterationsSinceYield = 0;
                 if (currentBatchCount > 0) {
-                    postVisitedBatch(requestId, currentBatch, currentBatchCount);
+                    postSolveRequestProgress(requestId, currentBatch, currentBatchCount);
                     currentBatch = new Int32Array(batchSize);
                     currentBatchCount = 0;
                 }
@@ -122,7 +122,7 @@
         }
 
         if (currentBatchCount > 0) {
-            postVisitedBatch(requestId, currentBatch, currentBatchCount);
+            postSolveRequestProgress(requestId, currentBatch, currentBatchCount);
         }
 
         return new Int32Array(0);
@@ -272,7 +272,7 @@
     }
 
     workerScope.MazeWorkerAlgorithms = {
-        generateMaze,
-        solveMaze,
+        runGenerateRequest,
+        runSolveRequest,
     };
 })(self);

@@ -1,12 +1,12 @@
-(function initializeMazeWorkerClient() {
-    const { MESSAGE_TYPES, WORKER_SCRIPT } = window.MazeAppConstants;
+(function initializeMazeWorkerRequestClient() {
+    const { MESSAGE_TYPES, WORKER_SCRIPT } = window.MazeAppConfig;
     const MESSAGE_HANDLER_NAMES = {
         [MESSAGE_TYPES.generated]: "onGenerated",
         [MESSAGE_TYPES.progress]: "onProgress",
         [MESSAGE_TYPES.solved]: "onSolved",
     };
 
-    class MazeWorkerClient {
+    class MazeWorkerRequestClient {
         constructor(handlers = {}) {
             this.handlers = handlers;
             this.requestCounter = 0;
@@ -63,7 +63,7 @@
             });
         }
 
-        startGenerate(size) {
+        startGenerateRequest(size) {
             this.cancelActiveRequest();
             const requestId = ++this.requestCounter;
             this.activeRequestId = requestId;
@@ -75,7 +75,7 @@
             return requestId;
         }
 
-        startSolve(payload) {
+        startSolveRequest(payload) {
             this.cancelActiveRequest();
             const requestId = ++this.requestCounter;
             this.activeRequestId = requestId;
@@ -96,5 +96,5 @@
         }
     }
 
-    window.MazeWorkerClient = MazeWorkerClient;
+    window.MazeWorkerRequestClient = MazeWorkerRequestClient;
 })();

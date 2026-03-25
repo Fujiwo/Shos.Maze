@@ -1,5 +1,5 @@
-(function initializeMazeWorkerMinHeap(workerScope) {
-    class MinHeap {
+(function initializeMazeWorkerHeap(workerScope) {
+    class WorkerHeap {
         constructor() {
             this.items = [];
         }
@@ -82,5 +82,5 @@
         }
     }
 
-    workerScope.MazeWorkerMinHeap = MinHeap;
+    workerScope.MazeWorkerHeap = WorkerHeap;
 })(self);

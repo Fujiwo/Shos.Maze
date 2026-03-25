@@ -1,4 +1,4 @@
-(function initializeMazeTiming() {
+(function initializeMazeAppTiming() {
     function pause(duration) {
         if (duration <= 0) {
             return new Promise((resolve) => {
@@ -11,7 +11,7 @@
         });
     }
 
-    window.MazeTiming = {
+    window.MazeAppTiming = {
         pause,
     };
 })();

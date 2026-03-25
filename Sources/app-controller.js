@@ -2,47 +2,47 @@
     const {
         ANIMATION_CONFIG,
         DIFFICULTY_OPTIONS,
-    } = window.MazeAppConstants;
+    } = window.MazeAppConfig;
     const {
-        applyGeneratedResult,
-        applyProgressResult,
-        applySolvedResult,
+        applyGenerateRequestResult,
+        applySolveProgressResult,
+        applySolveRequestResult,
         createInitialState,
         getStoredDifficulty,
         persistDifficulty,
         resetAnimationState,
     } = window.MazeAppState;
-    const { bindEvents, captureElements } = window.MazeDomElements;
+    const { bindEvents, captureElements } = window.MazeUiDom;
     const { createRenderScheduler } = window.MazeRenderScheduler;
-    const MazeRenderer = window.MazeRenderer;
-    const { pause } = window.MazeTiming;
+    const MazeRenderCanvas = window.MazeRenderCanvas;
+    const { pause } = window.MazeAppTiming;
     const { populateDifficultyOptions, syncUi } = window.MazeUiSync;
-    const MazeWorkerClient = window.MazeWorkerClient;
+    const MazeWorkerRequestClient = window.MazeWorkerRequestClient;
 
     class AppController {
         constructor() {
             this.elements = captureElements();
-            this.renderer = new MazeRenderer(this.elements.canvas, this.elements.stage);
+            this.renderer = new MazeRenderCanvas(this.elements.canvas, this.elements.stage);
             this.state = createInitialState(getStoredDifficulty());
             this.renderScheduler = createRenderScheduler(() => {
                 this.renderer.render(this.state);
             });
-            this.workerClient = this.createWorkerClient();
+            this.workerRequestClient = this.createWorkerRequestClient();
         }
 
-        createWorkerClient() {
-            return new MazeWorkerClient({
+        createWorkerRequestClient() {
+            return new MazeWorkerRequestClient({
                 onGenerated: (message) => {
-                    this.handleGenerated(message);
+                    this.handleGenerateRequestCompleted(message);
                 },
                 onProgress: (message) => {
-                    this.handleProgress(message);
+                    this.handleSolveRequestProgress(message);
                 },
                 onSolved: (message) => {
-                    void this.handleSolved(message);
+                    void this.handleSolveRequestCompleted(message);
                 },
                 onFailure: (errorInfo) => {
-                    this.handleWorkerFailure(errorInfo);
+                    this.handleRequestFailed(errorInfo);
                 },
             });
         }
@@ -50,7 +50,7 @@
         init() {
             populateDifficultyOptions(this.elements, this.state.selectedDifficulty);
             this.bindEvents();
-            this.generateMaze();
+            this.startGenerateRequest();
         }
 
         bindEvents() {
@@ -59,10 +59,10 @@
                     this.handleDifficultyChange(value);
                 },
                 onGenerate: () => {
-                    this.generateMaze();
+                    this.startGenerateRequest();
                 },
                 onExplore: async () => {
-                    await this.startExploration();
+                    await this.startSolveRequest();
                 },
                 onResize: () => {
                     this.requestRender();
@@ -77,30 +77,30 @@
 
             this.state.selectedDifficulty = value;
             persistDifficulty(this.state.selectedDifficulty);
-            this.generateMaze();
+            this.startGenerateRequest();
         }
 
-        handleGenerated(message) {
-            applyGeneratedResult(this.state, message);
+        handleGenerateRequestCompleted(message) {
+            applyGenerateRequestResult(this.state, message);
             this.setStatus("ready");
             this.syncUI();
             this.requestRender();
         }
 
-        handleProgress(message) {
-            applyProgressResult(this.state, message);
+        handleSolveRequestProgress(message) {
+            applySolveProgressResult(this.state, message);
             this.syncUI();
             this.requestRender();
         }
 
-        async handleSolved(message) {
-            applySolvedResult(this.state, message);
+        async handleSolveRequestCompleted(message) {
+            applySolveRequestResult(this.state, message);
             this.setStatus("highlighting");
             this.syncUI();
             this.requestRender();
             await this.animatePath(message.requestId);
 
-            if (!this.workerClient.isActiveRequest(message.requestId)) {
+            if (!this.workerRequestClient.isActiveRequest(message.requestId)) {
                 return;
             }
 
@@ -109,7 +109,7 @@
             this.requestRender();
         }
 
-        handleWorkerFailure(errorInfo) {
+        handleRequestFailed(errorInfo) {
             const label = errorInfo.kind === "worker" ? "Maze worker error" : "Maze worker task failed";
             console.error(label, errorInfo.message);
 
@@ -125,15 +125,15 @@
             this.requestRender();
         }
 
-        generateMaze() {
+        startGenerateRequest() {
             resetAnimationState(this.state);
             this.setStatus("generating");
             this.syncUI();
             this.requestRender();
-            this.workerClient.startGenerate(this.currentGridSize());
+            this.workerRequestClient.startGenerateRequest(this.currentGenerateRequestGridSize());
         }
 
-        async startExploration() {
+        async startSolveRequest() {
             if (
                 !this.state.mazeGrid ||
                 (this.state.currentStatus !== "ready" && this.state.currentStatus !== "completed")
@@ -146,21 +146,21 @@
             this.syncUI();
             this.requestRender();
 
-            this.workerClient.startSolve({
+            this.workerRequestClient.startSolveRequest({
                 grid: this.state.mazeGrid,
                 size: this.state.gridSize,
                 startId: this.state.startId,
                 goalId: this.state.goalId,
-                batchSize: this.currentAnimationConfig().workerBatchSize,
+                batchSize: this.currentSolveRequestAnimationConfig().workerBatchSize,
             });
         }
 
         async animatePath(requestId) {
-            const config = this.currentAnimationConfig();
+            const config = this.currentSolveRequestAnimationConfig();
             const total = this.state.shortestPath.length;
 
             while (this.state.renderedPathCount < total) {
-                if (!this.workerClient.isActiveRequest(requestId)) {
+                if (!this.workerRequestClient.isActiveRequest(requestId)) {
                     return;
                 }
 
@@ -186,11 +186,11 @@
             syncUi(this.elements, this.state);
         }
 
-        currentGridSize() {
+        currentGenerateRequestGridSize() {
             return DIFFICULTY_OPTIONS[this.state.selectedDifficulty].size;
         }
 
-        currentAnimationConfig() {
+        currentSolveRequestAnimationConfig() {
             return ANIMATION_CONFIG[this.state.selectedDifficulty];
         }
     }
