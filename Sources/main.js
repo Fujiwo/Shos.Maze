@@ -49,6 +49,7 @@ class MazeRenderer {
             markerInset: 0,
             markerSize: 0,
         };
+        this.pathSupport = typeof Path2D === "function";
     }
 
     resize(gridSize) {
@@ -183,17 +184,36 @@ class MazeRenderer {
         const context = this.staticContext;
         const grid = state.mazeGrid;
         const { xByCellId, yByCellId } = this.coordinateCache;
+        const wallPath = this.pathSupport ? new Path2D() : null;
+        const routePath = this.pathSupport ? new Path2D() : null;
 
         context.clearRect(0, 0, this.staticCanvas.width, this.staticCanvas.height);
 
-        for (let cellId = 0; cellId < grid.length; cellId += 1) {
-            context.fillStyle = grid[cellId] === 0 ? this.palette.wall : this.palette.path;
-            context.fillRect(
-                xByCellId[cellId],
-                yByCellId[cellId],
-                this.cellSize,
-                this.cellSize,
-            );
+        if (this.pathSupport) {
+            for (let cellId = 0; cellId < grid.length; cellId += 1) {
+                const targetPath = grid[cellId] === 0 ? wallPath : routePath;
+                targetPath.rect(
+                    xByCellId[cellId],
+                    yByCellId[cellId],
+                    this.cellSize,
+                    this.cellSize,
+                );
+            }
+
+            context.fillStyle = this.palette.wall;
+            context.fill(wallPath);
+            context.fillStyle = this.palette.path;
+            context.fill(routePath);
+        } else {
+            for (let cellId = 0; cellId < grid.length; cellId += 1) {
+                context.fillStyle = grid[cellId] === 0 ? this.palette.wall : this.palette.path;
+                context.fillRect(
+                    xByCellId[cellId],
+                    yByCellId[cellId],
+                    this.cellSize,
+                    this.cellSize,
+                );
+            }
         }
 
         this.drawMarkerById(state.startId, this.palette.start, context);
@@ -205,8 +225,27 @@ class MazeRenderer {
             return;
         }
 
-        context.fillStyle = color;
         const { xByCellId, yByCellId } = this.coordinateCache;
+
+        if (this.pathSupport) {
+            const path = new Path2D();
+
+            for (let index = startIndex; index < endIndex; index += 1) {
+                const cellId = ids[index];
+                path.rect(
+                    xByCellId[cellId],
+                    yByCellId[cellId],
+                    this.cellSize,
+                    this.cellSize,
+                );
+            }
+
+            context.fillStyle = color;
+            context.fill(path);
+            return;
+        }
+
+        context.fillStyle = color;
 
         for (let index = startIndex; index < endIndex; index += 1) {
             const cellId = ids[index];
