@@ -32,34 +32,34 @@ flowchart TB
 
 	subgraph Presentation[プレゼンテーション層]
 		HTML[index.html]
-		DOM[ui-dom.js]
-		Sync[ui-sync.js]
+		DOM[js/ui-dom.js]
+		Sync[js/ui-sync.js]
 		Styles[style.css]
 	end
 
 	subgraph Application[アプリケーション層]
-		Bootstrap[app-bootstrap.js]
-		Controller[app-controller.js]
-		State[app-state.js]
-		Config[app-config.js]
-		Timing[app-timing.js]
+		Bootstrap[js/app-bootstrap.js]
+		Controller[js/app-controller.js]
+		State[js/app-state.js]
+		Config[js/app-config.js]
+		Timing[js/app-timing.js]
 	end
 
 	subgraph Rendering[描画層]
-		Canvas[render-canvas.js]
-		Scheduler[render-scheduler.js]
+		Canvas[js/render-canvas.js]
+		Scheduler[js/render-scheduler.js]
 	end
 
 	subgraph WorkerBridge[Worker 境界層]
-		Client[worker-request-client.js]
-		Protocol[worker-message-protocol.js]
-		WorkerEntry[worker-bootstrap.js]
+		Client[js/worker-request-client.js]
+		Protocol[js/worker-message-protocol.js]
+		WorkerEntry[js/worker-bootstrap.js]
 	end
 
 	subgraph WorkerRuntime[Worker 実行層]
-		Messages[worker/worker-messages.js]
-		Algorithms[worker/worker-algorithms.js]
-		Heap[worker/worker-heap.js]
+		Messages[js/worker/worker-messages.js]
+		Algorithms[js/worker/worker-algorithms.js]
+		Heap[js/worker/worker-heap.js]
 	end
 
 	Storage[localStorage]
@@ -148,23 +148,24 @@ flowchart TB
 ├─ Sources/
 │  ├─ index.html
 │  ├─ style.css
-│  ├─ app-bootstrap.js
-│  ├─ app-config.js
-│  ├─ app-controller.js
-│  ├─ app-state.js
-│  ├─ app-timing.js
-│  ├─ render-canvas.js
-│  ├─ render-scheduler.js
-│  ├─ ui-dom.js
-│  ├─ ui-sync.js
-│  ├─ worker-bootstrap.js
-│  ├─ worker-message-protocol.js
-│  ├─ worker-request-client.js
 │  ├─ favicon.svg
-│  └─ worker/
-│     ├─ worker-algorithms.js
-│     ├─ worker-heap.js
-│     └─ worker-messages.js
+│  └─ js/
+│     ├─ app-bootstrap.js
+│     ├─ app-config.js
+│     ├─ app-controller.js
+│     ├─ app-state.js
+│     ├─ app-timing.js
+│     ├─ render-canvas.js
+│     ├─ render-scheduler.js
+│     ├─ ui-dom.js
+│     ├─ ui-sync.js
+│     ├─ worker-bootstrap.js
+│     ├─ worker-message-protocol.js
+│     ├─ worker-request-client.js
+│     └─ worker/
+│        ├─ worker-algorithms.js
+│        ├─ worker-heap.js
+│        └─ worker-messages.js
 ├─ Tests/
 │  ├─ e2e/
 │  │  └─ maze-runtime.spec.js
@@ -188,18 +189,18 @@ flowchart TB
 - Tests: Playwright E2E と静的サーバー
 - Works/Plans: 計画書、検証記録、改善レポート
 
-Sources 配下の主要ファイルの役割は以下です。
+Sources/js 配下の主要ファイルの役割は以下です。
 
 - index.html: 画面のエントリポイントと classic script の読み込み順定義
 - style.css: UI とレスポンシブレイアウト
-- app-config.js: Difficulty、表示文言、配色、Worker 設定
-- app-state.js: アプリ状態と描画進行状態
-- app-controller.js: 状態遷移、操作制御、generate / solve の進行管理
-- render-canvas.js: 迷路、探索済みセル、最短経路の Canvas 描画
-- render-scheduler.js: 描画要求のフレーム集約
-- worker-request-client.js: Worker への要求発行、cancel、stale result 抑制
-- worker-bootstrap.js: Worker 側の起動入口
-- worker/: 迷路生成、A* 探索、heap、Worker メッセージ処理
+- js/app-config.js: Difficulty、表示文言、配色、Worker 設定
+- js/app-state.js: アプリ状態と描画進行状態
+- js/app-controller.js: 状態遷移、操作制御、generate / solve の進行管理
+- js/render-canvas.js: 迷路、探索済みセル、最短経路の Canvas 描画
+- js/render-scheduler.js: 描画要求のフレーム集約
+- js/worker-request-client.js: Worker への要求発行、cancel、stale result 抑制
+- js/worker-bootstrap.js: Worker 側の起動入口
+- js/worker/: 迷路生成、A* 探索、heap、Worker メッセージ処理
 
 ## 利用方法
 

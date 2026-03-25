@@ -38,7 +38,7 @@
     };
 
     const STORAGE_KEY = "mazeApp.selectedDifficulty";
-    const WORKER_SCRIPT = "worker-bootstrap.js";
+    const WORKER_SCRIPT = "js/worker-bootstrap.js";
 
     window.MazeAppConfig = {
         ANIMATION_CONFIG,

@@ -40,34 +40,34 @@ flowchart TB
 
    subgraph Presentation[Presentation Layer]
       HTML[index.html]
-      DOM[ui-dom.js]
-      Sync[ui-sync.js]
+      DOM[js/ui-dom.js]
+      Sync[js/ui-sync.js]
       Styles[style.css]
    end
 
    subgraph Application[Application Layer]
-      Bootstrap[app-bootstrap.js]
-      Controller[app-controller.js]
-      State[app-state.js]
-      Config[app-config.js]
-      Timing[app-timing.js]
+      Bootstrap[js/app-bootstrap.js]
+      Controller[js/app-controller.js]
+      State[js/app-state.js]
+      Config[js/app-config.js]
+      Timing[js/app-timing.js]
    end
 
    subgraph Rendering[Rendering Layer]
-      Canvas[render-canvas.js]
-      Scheduler[render-scheduler.js]
+      Canvas[js/render-canvas.js]
+      Scheduler[js/render-scheduler.js]
    end
 
    subgraph WorkerBridge[Worker Boundary]
-      Client[worker-request-client.js]
-      Protocol[worker-message-protocol.js]
-      WorkerEntry[worker-bootstrap.js]
+      Client[js/worker-request-client.js]
+      Protocol[js/worker-message-protocol.js]
+      WorkerEntry[js/worker-bootstrap.js]
    end
 
    subgraph WorkerRuntime[Worker Runtime]
-      Messages[worker/worker-messages.js]
-      Algorithms[worker/worker-algorithms.js]
-      Heap[worker/worker-heap.js]
+      Messages[js/worker/worker-messages.js]
+      Algorithms[js/worker/worker-algorithms.js]
+      Heap[js/worker/worker-heap.js]
    end
 
    Storage[localStorage]
@@ -156,23 +156,24 @@ Notes:
 ├─ Sources/
 │  ├─ index.html
 │  ├─ style.css
-│  ├─ app-bootstrap.js
-│  ├─ app-config.js
-│  ├─ app-controller.js
-│  ├─ app-state.js
-│  ├─ app-timing.js
-│  ├─ render-canvas.js
-│  ├─ render-scheduler.js
-│  ├─ ui-dom.js
-│  ├─ ui-sync.js
-│  ├─ worker-bootstrap.js
-│  ├─ worker-message-protocol.js
-│  ├─ worker-request-client.js
 │  ├─ favicon.svg
-│  └─ worker/
-│     ├─ worker-algorithms.js
-│     ├─ worker-heap.js
-│     └─ worker-messages.js
+│  └─ js/
+│     ├─ app-bootstrap.js
+│     ├─ app-config.js
+│     ├─ app-controller.js
+│     ├─ app-state.js
+│     ├─ app-timing.js
+│     ├─ render-canvas.js
+│     ├─ render-scheduler.js
+│     ├─ ui-dom.js
+│     ├─ ui-sync.js
+│     ├─ worker-bootstrap.js
+│     ├─ worker-message-protocol.js
+│     ├─ worker-request-client.js
+│     └─ worker/
+│        ├─ worker-algorithms.js
+│        ├─ worker-heap.js
+│        └─ worker-messages.js
 ├─ Tests/
 │  ├─ e2e/
 │  │  └─ maze-runtime.spec.js
@@ -196,18 +197,18 @@ Main directory roles:
 - Tests: Playwright E2E tests and the local static server
 - Works/Plans: planning notes, verification records, and tuning reports
 
-Key files under Sources:
+Key files under Sources/js:
 
 - index.html: app entry point and classic script load order
 - style.css: UI styling and responsive layout
-- app-config.js: difficulty options, labels, palette, and Worker settings
-- app-state.js: application state and render progress state
-- app-controller.js: state transitions, UI control, and generate / solve flow
-- render-canvas.js: Canvas rendering for maze, explored cells, and shortest path
-- render-scheduler.js: frame-level render request batching
-- worker-request-client.js: Worker requests, cancellation, and stale-result suppression
-- worker-bootstrap.js: Worker entry point
-- worker/: maze generation, A* search, heap, and Worker-side message handling
+- js/app-config.js: difficulty options, labels, palette, and Worker settings
+- js/app-state.js: application state and render progress state
+- js/app-controller.js: state transitions, UI control, and generate / solve flow
+- js/render-canvas.js: Canvas rendering for maze, explored cells, and shortest path
+- js/render-scheduler.js: frame-level render request batching
+- js/worker-request-client.js: Worker requests, cancellation, and stale-result suppression
+- js/worker-bootstrap.js: Worker entry point
+- js/worker/: maze generation, A* search, heap, and Worker-side message handling
 
 ## Usage
 
