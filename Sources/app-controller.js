@@ -138,7 +138,7 @@
             }
 
             if (!this.restoreRequestSnapshot()) {
-                this.setStatus(this.state.mazeGrid ? "ready" : "idle");
+                this.setStatus("ready");
             }
 
             this.clearRequestSnapshot();
@@ -245,7 +245,10 @@
                 return false;
             }
 
-            this.state.currentStatus = this.requestSnapshot.currentStatus;
+            this.state.currentStatus =
+                this.requestSnapshot.currentStatus === "idle"
+                    ? "ready"
+                    : this.requestSnapshot.currentStatus;
             this.state.goalId = this.requestSnapshot.goalId;
             this.state.gridSize = this.requestSnapshot.gridSize;
             this.state.mazeGrid = this.requestSnapshot.mazeGrid;
