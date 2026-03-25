@@ -102,6 +102,85 @@ test.describe("Maze runtime smoke", () => {
         expect(consoleErrors).toEqual([]);
     });
 
+    test("ignores generate spam while solve request is active and keeps UI consistent", async ({ page }) => {
+        const pageErrors = [];
+        const consoleErrors = [];
+
+        await page.addInitScript(() => {
+            const NativeWorker = window.Worker;
+            const outboundMessages = [];
+
+            window.__mazeWorkerOutboundMessages = outboundMessages;
+
+            class TrackingWorker extends NativeWorker {
+                postMessage(message, ...rest) {
+                    outboundMessages.push({
+                        requestId: message?.requestId ?? null,
+                        size: message?.size ?? null,
+                        type: message?.type ?? null,
+                    });
+                    return super.postMessage(message, ...rest);
+                }
+            }
+
+            Object.defineProperty(window, "Worker", {
+                configurable: true,
+                writable: true,
+                value: TrackingWorker,
+            });
+        });
+
+        page.on("pageerror", (error) => {
+            pageErrors.push(error.message);
+        });
+
+        page.on("console", (message) => {
+            if (message.type() === "error") {
+                consoleErrors.push(message.text());
+            }
+        });
+
+        await page.goto("/");
+        await waitForReadyState(page);
+
+        await page.getByRole("combobox", { name: "Difficulty" }).selectOption("superhard");
+        await waitForReadyState(page);
+
+        const baselineMessages = await page.evaluate(() => window.__mazeWorkerOutboundMessages.length);
+
+        await page.getByRole("button", { name: "Start Exploration" }).click();
+        await expect(page.locator("#generate-button")).toBeDisabled();
+        await expect
+            .poll(async () => {
+                return await page.locator("#status-text").textContent();
+            })
+            .not.toBe("Ready");
+
+        await page.evaluate(() => {
+            const generateButton = document.getElementById("generate-button");
+            for (let index = 0; index < 12; index += 1) {
+                generateButton.click();
+            }
+        });
+
+        await expect(page.locator("#generate-button")).toBeDisabled();
+        await page.waitForTimeout(300);
+
+        const outboundMessages = await page.evaluate(() => window.__mazeWorkerOutboundMessages);
+        const messagesAfterExploreStart = outboundMessages.slice(baselineMessages);
+        const generateMessagesAfterExploreStart = messagesAfterExploreStart.filter((message) => message.type === "generate");
+        const solveMessagesAfterExploreStart = messagesAfterExploreStart.filter((message) => message.type === "solve");
+
+        expect(solveMessagesAfterExploreStart.length).toBe(1);
+        expect(generateMessagesAfterExploreStart.length).toBe(0);
+
+        await expect(page.locator("#difficulty-text")).toHaveText("Super Hard");
+        await expect(page.locator("#grid-size-text")).toHaveText("201 x 201");
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
+
     test("cancels stale generate requests during rapid difficulty changes", async ({ page }) => {
         const pageErrors = [];
         const consoleErrors = [];
