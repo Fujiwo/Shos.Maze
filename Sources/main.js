@@ -16,296 +16,6 @@ const STATUS_LABELS = {
 
 const STORAGE_KEY = "mazeApp.selectedDifficulty";
 
-class MinHeap {
-    constructor() {
-        this.items = [];
-    }
-
-    get size() {
-        return this.items.length;
-    }
-
-    push(item) {
-        this.items.push(item);
-        this.bubbleUp(this.items.length - 1);
-    }
-
-    pop() {
-        if (this.items.length === 0) {
-            return null;
-        }
-
-        const root = this.items[0];
-        const last = this.items.pop();
-
-        if (this.items.length > 0) {
-            this.items[0] = last;
-            this.bubbleDown(0);
-        }
-
-        return root;
-    }
-
-    bubbleUp(index) {
-        let currentIndex = index;
-
-        while (currentIndex > 0) {
-            const parentIndex = Math.floor((currentIndex - 1) / 2);
-            if (this.items[parentIndex].priority <= this.items[currentIndex].priority) {
-                break;
-            }
-
-            [this.items[parentIndex], this.items[currentIndex]] = [
-                this.items[currentIndex],
-                this.items[parentIndex],
-            ];
-            currentIndex = parentIndex;
-        }
-    }
-
-    bubbleDown(index) {
-        let currentIndex = index;
-        const length = this.items.length;
-
-        while (true) {
-            const leftIndex = currentIndex * 2 + 1;
-            const rightIndex = currentIndex * 2 + 2;
-            let smallestIndex = currentIndex;
-
-            if (
-                leftIndex < length &&
-                this.items[leftIndex].priority < this.items[smallestIndex].priority
-            ) {
-                smallestIndex = leftIndex;
-            }
-
-            if (
-                rightIndex < length &&
-                this.items[rightIndex].priority < this.items[smallestIndex].priority
-            ) {
-                smallestIndex = rightIndex;
-            }
-
-            if (smallestIndex === currentIndex) {
-                break;
-            }
-
-            [this.items[currentIndex], this.items[smallestIndex]] = [
-                this.items[smallestIndex],
-                this.items[currentIndex],
-            ];
-            currentIndex = smallestIndex;
-        }
-    }
-}
-
-class MazeGenerator {
-    async generate(size, yieldControl) {
-        const grid = Array.from({ length: size }, () => new Uint8Array(size));
-        const stack = [];
-        const startCell = { row: 1, col: 1 };
-        let stepsSinceYield = 0;
-
-        grid[startCell.row][startCell.col] = 1;
-        stack.push(startCell);
-
-        while (stack.length > 0) {
-            const current = stack[stack.length - 1];
-            const neighbors = this.getUnvisitedNeighbors(grid, current, size);
-
-            if (neighbors.length === 0) {
-                stack.pop();
-                continue;
-            }
-
-            const next = neighbors[Math.floor(Math.random() * neighbors.length)];
-            const wallRow = current.row + (next.row - current.row) / 2;
-            const wallCol = current.col + (next.col - current.col) / 2;
-
-            grid[wallRow][wallCol] = 1;
-            grid[next.row][next.col] = 1;
-            stack.push(next);
-
-            stepsSinceYield += 1;
-            if (yieldControl && stepsSinceYield >= 2048) {
-                stepsSinceYield = 0;
-                const shouldContinue = await yieldControl();
-                if (!shouldContinue) {
-                    return null;
-                }
-            }
-        }
-
-        const startPosition = { row: 1, col: 1 };
-        const goalPosition = { row: size - 2, col: size - 2 };
-        grid[startPosition.row][startPosition.col] = 1;
-        grid[goalPosition.row][goalPosition.col] = 1;
-
-        return { grid, startPosition, goalPosition };
-    }
-
-    getUnvisitedNeighbors(grid, cell, size) {
-        const neighbors = [];
-        const { row, col } = cell;
-
-        if (row > 1 && grid[row - 2][col] === 0) {
-            neighbors.push({ row: row - 2, col });
-        }
-        if (row < size - 2 && grid[row + 2][col] === 0) {
-            neighbors.push({ row: row + 2, col });
-        }
-        if (col > 1 && grid[row][col - 2] === 0) {
-            neighbors.push({ row, col: col - 2 });
-        }
-        if (col < size - 2 && grid[row][col + 2] === 0) {
-            neighbors.push({ row, col: col + 2 });
-        }
-
-        return neighbors;
-    }
-}
-
-class MazeSolver {
-    createSession(grid, startPosition, goalPosition) {
-        const size = grid.length;
-        const totalCells = size * size;
-        const startId = this.cellToId(startPosition, size);
-        const goalId = this.cellToId(goalPosition, size);
-        const cameFrom = new Int32Array(totalCells);
-        const gScore = new Float64Array(totalCells);
-        const closedSet = new Uint8Array(totalCells);
-        const openHeap = new MinHeap();
-
-        cameFrom.fill(-1);
-        gScore.fill(Number.POSITIVE_INFINITY);
-        gScore[startId] = 0;
-        openHeap.push({ id: startId, priority: this.heuristicById(startId, goalId, size) });
-
-        return {
-            grid,
-            size,
-            goalId,
-            goalPosition,
-            openHeap,
-            closedSet,
-            cameFrom,
-            gScore,
-            isComplete: false,
-            shortestPath: [],
-        };
-    }
-
-    step(session, iterationBudget) {
-        const visitedBatch = [];
-        let iterations = 0;
-
-        while (session.openHeap.size > 0 && !session.isComplete && iterations < iterationBudget) {
-            const currentEntry = session.openHeap.pop();
-            if (!currentEntry) {
-                break;
-            }
-
-            const currentId = currentEntry.id;
-
-            if (session.closedSet[currentId] === 1) {
-                continue;
-            }
-
-            session.closedSet[currentId] = 1;
-            visitedBatch.push(this.idToCell(currentId, session.size));
-            iterations += 1;
-
-            if (currentId === session.goalId) {
-                session.isComplete = true;
-                session.shortestPath = this.reconstructPath(session.cameFrom, currentId, session.size);
-                break;
-            }
-
-            const neighborIds = this.getNeighborIds(session.grid, currentId, session.size);
-            const currentGScore = session.gScore[currentId];
-
-            for (const neighborId of neighborIds) {
-                if (session.closedSet[neighborId] === 1) {
-                    continue;
-                }
-
-                const tentativeGScore = currentGScore + 1;
-                const existingScore = session.gScore[neighborId];
-
-                if (tentativeGScore >= existingScore) {
-                    continue;
-                }
-
-                session.cameFrom[neighborId] = currentId;
-                session.gScore[neighborId] = tentativeGScore;
-                session.openHeap.push({
-                    id: neighborId,
-                    priority: tentativeGScore + this.heuristicById(neighborId, session.goalId, session.size),
-                });
-            }
-        }
-
-        const done = session.isComplete || session.openHeap.size === 0;
-        return {
-            visitedBatch,
-            done,
-            shortestPath: done ? session.shortestPath : [],
-        };
-    }
-
-    getNeighborIds(grid, cellId, size) {
-        const row = Math.floor(cellId / size);
-        const col = cellId % size;
-        const neighbors = [];
-
-        if (row > 0 && grid[row - 1][col] === 1) {
-            neighbors.push(cellId - size);
-        }
-        if (row < size - 1 && grid[row + 1][col] === 1) {
-            neighbors.push(cellId + size);
-        }
-        if (col > 0 && grid[row][col - 1] === 1) {
-            neighbors.push(cellId - 1);
-        }
-        if (col < size - 1 && grid[row][col + 1] === 1) {
-            neighbors.push(cellId + 1);
-        }
-
-        return neighbors;
-    }
-
-    heuristicById(cellId, goalId, size) {
-        const row = Math.floor(cellId / size);
-        const col = cellId % size;
-        const goalRow = Math.floor(goalId / size);
-        const goalCol = goalId % size;
-        return Math.abs(row - goalRow) + Math.abs(col - goalCol);
-    }
-
-    reconstructPath(cameFrom, currentId, size) {
-        const path = [];
-        let cursor = currentId;
-
-        while (cursor !== -1) {
-            path.push(this.idToCell(cursor, size));
-            cursor = cameFrom[cursor];
-        }
-
-        return path.reverse();
-    }
-
-    cellToId(cell, size) {
-        return cell.row * size + cell.col;
-    }
-
-    idToCell(cellId, size) {
-        return {
-            row: Math.floor(cellId / size),
-            col: cellId % size,
-        };
-    }
-}
-
 class MazeRenderer {
     constructor(canvas, stageElement) {
         this.canvas = canvas;
@@ -326,10 +36,18 @@ class MazeRenderer {
         this.context.imageSmoothingEnabled = false;
         this.renderCache = {
             mazeGrid: null,
-            width: 0,
-            height: 0,
             visitedCount: 0,
             pathCount: 0,
+        };
+        this.coordinateCache = {
+            gridSize: 0,
+            dimension: 0,
+            xByCellId: new Float32Array(0),
+            yByCellId: new Float32Array(0),
+            markerXByCellId: new Float32Array(0),
+            markerYByCellId: new Float32Array(0),
+            markerInset: 0,
+            markerSize: 0,
         };
     }
 
@@ -339,27 +57,74 @@ class MazeRenderer {
         const availableHeight = Math.max(240, viewportHeight - bounds.top - 32);
         const dimension = Math.max(240, Math.floor(Math.min(bounds.width, availableHeight)));
         const resized = this.canvas.width !== dimension || this.canvas.height !== dimension;
+        const cacheStale =
+            this.coordinateCache.gridSize !== gridSize ||
+            this.coordinateCache.dimension !== dimension;
 
-        if (!resized) {
+        if (!resized && !cacheStale) {
             return false;
         }
 
-        this.canvas.width = dimension;
-        this.canvas.height = dimension;
-        this.staticCanvas.width = dimension;
-        this.staticCanvas.height = dimension;
+        if (resized) {
+            this.canvas.width = dimension;
+            this.canvas.height = dimension;
+            this.staticCanvas.width = dimension;
+            this.staticCanvas.height = dimension;
+        }
         this.cellSize = dimension / gridSize;
         this.context.imageSmoothingEnabled = false;
         this.staticContext.imageSmoothingEnabled = false;
-        return true;
+        this.ensureCoordinateCache(gridSize, dimension);
+        return resized;
     }
 
-    render(state) {
-        if (!state.mazeGrid) {
+    ensureCoordinateCache(gridSize, dimension) {
+        if (
+            this.coordinateCache.gridSize === gridSize &&
+            this.coordinateCache.dimension === dimension
+        ) {
             return;
         }
 
-        const resized = this.resize(state.mazeGrid.length);
+        const totalCells = gridSize * gridSize;
+        const xByCellId = new Float32Array(totalCells);
+        const yByCellId = new Float32Array(totalCells);
+        const markerXByCellId = new Float32Array(totalCells);
+        const markerYByCellId = new Float32Array(totalCells);
+        const markerInset = Math.max(2, this.cellSize * 0.18);
+        const markerSize = Math.max(2, this.cellSize - markerInset * 2);
+        let cellId = 0;
+
+        for (let row = 0; row < gridSize; row += 1) {
+            const y = row * this.cellSize;
+            for (let col = 0; col < gridSize; col += 1) {
+                const x = col * this.cellSize;
+                xByCellId[cellId] = x;
+                yByCellId[cellId] = y;
+                markerXByCellId[cellId] = x + markerInset;
+                markerYByCellId[cellId] = y + markerInset;
+                cellId += 1;
+            }
+        }
+
+        this.coordinateCache = {
+            gridSize,
+            dimension,
+            xByCellId,
+            yByCellId,
+            markerXByCellId,
+            markerYByCellId,
+            markerInset,
+            markerSize,
+        };
+    }
+
+    render(state) {
+        if (!state.mazeGrid || state.gridSize === 0) {
+            return;
+        }
+
+        const resized = this.resize(state.gridSize);
         const mazeChanged = this.renderCache.mazeGrid !== state.mazeGrid;
         const countsReset =
             state.renderedVisitedCount < this.renderCache.visitedCount ||
@@ -373,36 +138,42 @@ class MazeRenderer {
         if (requiresFullRedraw) {
             this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
             this.context.drawImage(this.staticCanvas, 0, 0);
-            this.drawCells(
-                state.visitedOrder.slice(0, state.renderedVisitedCount),
+            this.drawCellsByIdRange(
+                state.visitedOrder,
+                0,
+                state.renderedVisitedCount,
                 this.palette.visited,
                 this.context,
             );
-            this.drawCells(
-                state.shortestPath.slice(0, state.renderedPathCount),
+            this.drawCellsByIdRange(
+                state.shortestPath,
+                0,
+                state.renderedPathCount,
                 this.palette.solution,
                 this.context,
             );
         } else {
-            this.drawCells(
-                state.visitedOrder.slice(this.renderCache.visitedCount, state.renderedVisitedCount),
+            this.drawCellsByIdRange(
+                state.visitedOrder,
+                this.renderCache.visitedCount,
+                state.renderedVisitedCount,
                 this.palette.visited,
                 this.context,
             );
-            this.drawCells(
-                state.shortestPath.slice(this.renderCache.pathCount, state.renderedPathCount),
+            this.drawCellsByIdRange(
+                state.shortestPath,
+                this.renderCache.pathCount,
+                state.renderedPathCount,
                 this.palette.solution,
                 this.context,
             );
         }
 
-        this.drawMarker(state.startPosition, this.palette.start, this.context);
-        this.drawMarker(state.goalPosition, this.palette.goal, this.context);
+        this.drawMarkerById(state.startId, this.palette.start, this.context);
+        this.drawMarkerById(state.goalId, this.palette.goal, this.context);
 
         this.renderCache = {
             mazeGrid: state.mazeGrid,
-            width: this.canvas.width,
-            height: this.canvas.height,
             visitedCount: state.renderedVisitedCount,
             pathCount: state.renderedPathCount,
         };
@@ -411,74 +182,103 @@ class MazeRenderer {
     drawStaticLayer(state) {
         const context = this.staticContext;
         const grid = state.mazeGrid;
-        const size = grid.length;
+        const { xByCellId, yByCellId } = this.coordinateCache;
 
         context.clearRect(0, 0, this.staticCanvas.width, this.staticCanvas.height);
 
-        for (let row = 0; row < size; row += 1) {
-            for (let col = 0; col < size; col += 1) {
-                context.fillStyle = grid[row][col] === 0 ? this.palette.wall : this.palette.path;
-                context.fillRect(col * this.cellSize, row * this.cellSize, this.cellSize, this.cellSize);
-            }
+        for (let cellId = 0; cellId < grid.length; cellId += 1) {
+            context.fillStyle = grid[cellId] === 0 ? this.palette.wall : this.palette.path;
+            context.fillRect(
+                xByCellId[cellId],
+                yByCellId[cellId],
+                this.cellSize,
+                this.cellSize,
+            );
         }
 
-        this.drawMarker(state.startPosition, this.palette.start, context);
-        this.drawMarker(state.goalPosition, this.palette.goal, context);
+        this.drawMarkerById(state.startId, this.palette.start, context);
+        this.drawMarkerById(state.goalId, this.palette.goal, context);
     }
 
-    drawCells(cells, color, context) {
-        context.fillStyle = color;
+    drawCellsByIdRange(ids, startIndex, endIndex, color, context) {
+        if (!ids || endIndex <= startIndex) {
+            return;
+        }
 
-        for (const cell of cells) {
+        context.fillStyle = color;
+        const { xByCellId, yByCellId } = this.coordinateCache;
+
+        for (let index = startIndex; index < endIndex; index += 1) {
+            const cellId = ids[index];
             context.fillRect(
-                cell.col * this.cellSize,
-                cell.row * this.cellSize,
+                xByCellId[cellId],
+                yByCellId[cellId],
                 this.cellSize,
                 this.cellSize,
             );
         }
     }
 
-    drawMarker(cell, color, context) {
-        if (!cell) {
+    drawMarkerById(cellId, color, context) {
+        if (cellId < 0) {
             return;
         }
 
-        const inset = Math.max(2, this.cellSize * 0.18);
+        const { markerXByCellId, markerYByCellId, markerSize } = this.coordinateCache;
+
         context.fillStyle = color;
         context.fillRect(
-            cell.col * this.cellSize + inset,
-            cell.row * this.cellSize + inset,
-            Math.max(2, this.cellSize - inset * 2),
-            Math.max(2, this.cellSize - inset * 2),
+            markerXByCellId[cellId],
+            markerYByCellId[cellId],
+            markerSize,
+            markerSize,
         );
     }
 }
 
 class AppController {
     constructor() {
-        this.generator = new MazeGenerator();
-        this.solver = new MazeSolver();
         this.elements = this.captureElements();
         this.renderer = new MazeRenderer(this.elements.canvas, this.elements.stage);
+        this.worker = this.createWorker();
         this.state = {
             mazeGrid: null,
-            startPosition: null,
-            goalPosition: null,
-            visitedOrder: [],
-            shortestPath: [],
+            gridSize: 0,
+            startId: -1,
+            goalId: -1,
+            visitedOrder: new Int32Array(1024),
+            visitedCount: 0,
+            shortestPath: new Int32Array(0),
             renderedVisitedCount: 0,
             renderedPathCount: 0,
             selectedDifficulty: this.getStoredDifficulty(),
             currentStatus: "idle",
         };
-        this.runToken = 0;
+        this.requestCounter = 0;
+        this.activeRequestId = 0;
+        this.renderQueued = false;
         this.animationConfig = {
-            easy: { exploreBatchSize: 4, exploreDelay: 18, pathDelay: 28 },
-            normal: { exploreBatchSize: 10, exploreDelay: 10, pathDelay: 18 },
-            hard: { exploreBatchSize: 64, exploreDelay: 2, pathDelay: 4 },
-            superhard: { exploreBatchSize: 320, exploreDelay: 0, pathDelay: 0 },
+            easy: { workerBatchSize: 24, pathBatchSize: 2, pathDelay: 18 },
+            normal: { workerBatchSize: 96, pathBatchSize: 4, pathDelay: 10 },
+            hard: { workerBatchSize: 320, pathBatchSize: 12, pathDelay: 0 },
+            superhard: { workerBatchSize: 1024, pathBatchSize: 32, pathDelay: 0 },
         };
+    }
+
+    createWorker() {
+        const worker = new Worker("maze-worker.js");
+        worker.addEventListener("message", (event) => {
+            this.handleWorkerMessage(event.data);
+        });
+        worker.addEventListener("error", (event) => {
+            console.error("Maze worker error", event.message);
+            if (this.state.currentStatus === "generating" || this.state.currentStatus === "exploring") {
+                this.setStatus("ready");
+                this.syncUI();
+                this.requestRender();
+            }
+        });
+        return worker;
     }
 
     captureElements() {
@@ -528,7 +328,7 @@ class AppController {
         });
 
         window.addEventListener("resize", () => {
-            this.renderer.render(this.state);
+            this.requestRender();
         });
     }
 
@@ -542,115 +342,172 @@ class AppController {
         this.generateMaze();
     }
 
-    async generateMaze() {
-        const token = ++this.runToken;
-        this.setStatus("generating");
-        this.resetAnimationState();
-        this.syncUI();
-        this.renderer.render(this.state);
-        await this.yieldToBrowser();
-
-        if (token !== this.runToken) {
+    handleWorkerMessage(message) {
+        if (message.requestId !== this.activeRequestId) {
             return;
         }
 
-        const size = this.currentGridSize();
-        const generated = await this.generator.generate(size, async () => {
-            await this.yieldToBrowser();
-            return token === this.runToken;
-        });
-
-        if (!generated || token !== this.runToken) {
+        if (message.type === "generated") {
+            this.handleGenerated(message);
             return;
         }
 
-        this.state.mazeGrid = generated.grid;
-        this.state.startPosition = generated.startPosition;
-        this.state.goalPosition = generated.goalPosition;
+        if (message.type === "progress") {
+            this.handleProgress(message);
+            return;
+        }
 
-        this.setStatus("ready");
-        this.syncUI();
-        this.renderer.render(this.state);
+        if (message.type === "solved") {
+            void this.handleSolved(message);
+            return;
+        }
+
+        if (message.type === "error") {
+            console.error("Maze worker task failed", message.error);
+            this.setStatus("ready");
+            this.syncUI();
+            this.requestRender();
+        }
     }
 
-    async startExploration() {
-        if (!this.state.mazeGrid || this.state.currentStatus !== "ready" && this.state.currentStatus !== "completed") {
-            return;
-        }
-
-        const token = ++this.runToken;
+    handleGenerated(message) {
+        this.state.mazeGrid = message.grid;
+        this.state.gridSize = message.size;
+        this.state.startId = message.startId;
+        this.state.goalId = message.goalId;
         this.resetAnimationState();
-        this.setStatus("exploring");
+        this.setStatus("ready");
         this.syncUI();
-        this.renderer.render(this.state);
+        this.requestRender();
+    }
 
-        const session = this.solver.createSession(
-            this.state.mazeGrid,
-            this.state.startPosition,
-            this.state.goalPosition,
-        );
+    handleProgress(message) {
+        this.appendVisitedBatch(message.visitedIds);
+        this.state.renderedVisitedCount = this.state.visitedCount;
+        this.syncUI();
+        this.requestRender();
+    }
 
-        const shortestPath = await this.animateVisited(token, session);
-        if (token !== this.runToken) {
-            return;
-        }
-
-        this.state.shortestPath = shortestPath;
+    async handleSolved(message) {
+        this.state.shortestPath = message.pathIds;
+        this.state.renderedPathCount = 0;
         this.setStatus("highlighting");
         this.syncUI();
-        await this.animatePath(token);
-        if (token !== this.runToken) {
+        this.requestRender();
+        await this.animatePath(message.requestId);
+
+        if (this.activeRequestId !== message.requestId) {
             return;
         }
 
         this.setStatus("completed");
         this.syncUI();
-        this.renderer.render(this.state);
+        this.requestRender();
     }
 
-    async animateVisited(token, session) {
-        const config = this.currentAnimationConfig();
-
-        while (true) {
-            if (token !== this.runToken) {
-                return [];
-            }
-
-            const result = this.solver.step(session, config.exploreBatchSize);
-            this.state.visitedOrder.push(...result.visitedBatch);
-            this.state.renderedVisitedCount = this.state.visitedOrder.length;
-            this.syncUI();
-            this.renderer.render(this.state);
-
-            if (result.done) {
-                return result.shortestPath;
-            }
-
-            await this.pause(config.exploreDelay);
+    cancelActiveRequest() {
+        if (this.activeRequestId !== 0) {
+            this.worker.postMessage({ type: "cancel", requestId: this.activeRequestId });
         }
     }
 
-    async animatePath(token) {
+    generateMaze() {
+        this.cancelActiveRequest();
+        const requestId = ++this.requestCounter;
+        this.activeRequestId = requestId;
+        this.resetAnimationState();
+        this.setStatus("generating");
+        this.syncUI();
+        this.requestRender();
+        this.worker.postMessage({
+            type: "generate",
+            requestId,
+            size: this.currentGridSize(),
+        });
+    }
+
+    async startExploration() {
+        if (
+            !this.state.mazeGrid ||
+            (this.state.currentStatus !== "ready" && this.state.currentStatus !== "completed")
+        ) {
+            return;
+        }
+
+        this.cancelActiveRequest();
+        const requestId = ++this.requestCounter;
+        this.activeRequestId = requestId;
+        this.resetAnimationState();
+        this.setStatus("exploring");
+        this.syncUI();
+        this.requestRender();
+
+        this.worker.postMessage({
+            type: "solve",
+            requestId,
+            grid: this.state.mazeGrid,
+            size: this.state.gridSize,
+            startId: this.state.startId,
+            goalId: this.state.goalId,
+            batchSize: this.currentAnimationConfig().workerBatchSize,
+        });
+    }
+
+    appendVisitedBatch(batch) {
+        const requiredSize = this.state.visitedCount + batch.length;
+
+        if (requiredSize > this.state.visitedOrder.length) {
+            let nextLength = this.state.visitedOrder.length;
+            while (nextLength < requiredSize) {
+                nextLength *= 2;
+            }
+
+            const nextBuffer = new Int32Array(nextLength);
+            nextBuffer.set(this.state.visitedOrder.subarray(0, this.state.visitedCount));
+            this.state.visitedOrder = nextBuffer;
+        }
+
+        this.state.visitedOrder.set(batch, this.state.visitedCount);
+        this.state.visitedCount = requiredSize;
+    }
+
+    async animatePath(requestId) {
         const config = this.currentAnimationConfig();
         const total = this.state.shortestPath.length;
 
         while (this.state.renderedPathCount < total) {
-            if (token !== this.runToken) {
+            if (requestId !== this.activeRequestId) {
                 return;
             }
 
-            this.state.renderedPathCount += 1;
+            this.state.renderedPathCount = Math.min(
+                total,
+                this.state.renderedPathCount + config.pathBatchSize,
+            );
             this.syncUI();
-            this.renderer.render(this.state);
+            this.requestRender();
             await this.pause(config.pathDelay);
         }
     }
 
     resetAnimationState() {
-        this.state.visitedOrder = [];
-        this.state.shortestPath = [];
+        this.state.visitedOrder = new Int32Array(1024);
+        this.state.visitedCount = 0;
+        this.state.shortestPath = new Int32Array(0);
         this.state.renderedVisitedCount = 0;
         this.state.renderedPathCount = 0;
+    }
+
+    requestRender() {
+        if (this.renderQueued) {
+            return;
+        }
+
+        this.renderQueued = true;
+        window.requestAnimationFrame(() => {
+            this.renderQueued = false;
+            this.renderer.render(this.state);
+        });
     }
 
     setStatus(status) {
@@ -668,10 +525,10 @@ class AppController {
         const isGenerating = this.state.currentStatus === "generating";
         const isExploring = this.state.currentStatus === "exploring";
         const isHighlighting = this.state.currentStatus === "highlighting";
-        const controlsLocked = isGenerating || isHighlighting;
+        const controlsLocked = isGenerating || isHighlighting || isExploring;
 
-        this.elements.difficultySelect.disabled = controlsLocked || isExploring;
-        this.elements.generateButton.disabled = controlsLocked || isExploring;
+        this.elements.difficultySelect.disabled = controlsLocked;
+        this.elements.generateButton.disabled = controlsLocked;
         this.elements.exploreButton.disabled =
             isGenerating ||
             isExploring ||
@@ -706,17 +563,13 @@ class AppController {
 
     pause(duration) {
         if (duration <= 0) {
-            return this.yieldToBrowser();
+            return new Promise((resolve) => {
+                window.requestAnimationFrame(() => resolve());
+            });
         }
 
         return new Promise((resolve) => {
             window.setTimeout(resolve, duration);
-        });
-    }
-
-    yieldToBrowser() {
-        return new Promise((resolve) => {
-            window.requestAnimationFrame(() => resolve());
         });
     }
 }
