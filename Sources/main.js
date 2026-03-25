@@ -16,11 +16,95 @@ const STATUS_LABELS = {
 
 const STORAGE_KEY = "mazeApp.selectedDifficulty";
 
+class MinHeap {
+    constructor() {
+        this.items = [];
+    }
+
+    get size() {
+        return this.items.length;
+    }
+
+    push(item) {
+        this.items.push(item);
+        this.bubbleUp(this.items.length - 1);
+    }
+
+    pop() {
+        if (this.items.length === 0) {
+            return null;
+        }
+
+        const root = this.items[0];
+        const last = this.items.pop();
+
+        if (this.items.length > 0) {
+            this.items[0] = last;
+            this.bubbleDown(0);
+        }
+
+        return root;
+    }
+
+    bubbleUp(index) {
+        let currentIndex = index;
+
+        while (currentIndex > 0) {
+            const parentIndex = Math.floor((currentIndex - 1) / 2);
+            if (this.items[parentIndex].priority <= this.items[currentIndex].priority) {
+                break;
+            }
+
+            [this.items[parentIndex], this.items[currentIndex]] = [
+                this.items[currentIndex],
+                this.items[parentIndex],
+            ];
+            currentIndex = parentIndex;
+        }
+    }
+
+    bubbleDown(index) {
+        let currentIndex = index;
+        const length = this.items.length;
+
+        while (true) {
+            const leftIndex = currentIndex * 2 + 1;
+            const rightIndex = currentIndex * 2 + 2;
+            let smallestIndex = currentIndex;
+
+            if (
+                leftIndex < length &&
+                this.items[leftIndex].priority < this.items[smallestIndex].priority
+            ) {
+                smallestIndex = leftIndex;
+            }
+
+            if (
+                rightIndex < length &&
+                this.items[rightIndex].priority < this.items[smallestIndex].priority
+            ) {
+                smallestIndex = rightIndex;
+            }
+
+            if (smallestIndex === currentIndex) {
+                break;
+            }
+
+            [this.items[currentIndex], this.items[smallestIndex]] = [
+                this.items[smallestIndex],
+                this.items[currentIndex],
+            ];
+            currentIndex = smallestIndex;
+        }
+    }
+}
+
 class MazeGenerator {
-    generate(size) {
-        const grid = Array.from({ length: size }, () => Array(size).fill(0));
+    async generate(size, yieldControl) {
+        const grid = Array.from({ length: size }, () => new Uint8Array(size));
         const stack = [];
         const startCell = { row: 1, col: 1 };
+        let stepsSinceYield = 0;
 
         grid[startCell.row][startCell.col] = 1;
         stack.push(startCell);
@@ -41,6 +125,15 @@ class MazeGenerator {
             grid[wallRow][wallCol] = 1;
             grid[next.row][next.col] = 1;
             stack.push(next);
+
+            stepsSinceYield += 1;
+            if (yieldControl && stepsSinceYield >= 2048) {
+                stepsSinceYield = 0;
+                const shouldContinue = await yieldControl();
+                if (!shouldContinue) {
+                    return null;
+                }
+            }
         }
 
         const startPosition = { row: 1, col: 1 };
@@ -52,37 +145,51 @@ class MazeGenerator {
     }
 
     getUnvisitedNeighbors(grid, cell, size) {
-        const directions = [
-            { row: -2, col: 0 },
-            { row: 2, col: 0 },
-            { row: 0, col: -2 },
-            { row: 0, col: 2 },
-        ];
+        const neighbors = [];
+        const { row, col } = cell;
 
-        return directions
-            .map((direction) => ({
-                row: cell.row + direction.row,
-                col: cell.col + direction.col,
-            }))
-            .filter((candidate) => this.isInside(candidate, size) && grid[candidate.row][candidate.col] === 0);
-    }
+        if (row > 1 && grid[row - 2][col] === 0) {
+            neighbors.push({ row: row - 2, col });
+        }
+        if (row < size - 2 && grid[row + 2][col] === 0) {
+            neighbors.push({ row: row + 2, col });
+        }
+        if (col > 1 && grid[row][col - 2] === 0) {
+            neighbors.push({ row, col: col - 2 });
+        }
+        if (col < size - 2 && grid[row][col + 2] === 0) {
+            neighbors.push({ row, col: col + 2 });
+        }
 
-    isInside(cell, size) {
-        return cell.row > 0 && cell.row < size - 1 && cell.col > 0 && cell.col < size - 1;
+        return neighbors;
     }
 }
 
 class MazeSolver {
     createSession(grid, startPosition, goalPosition) {
+        const size = grid.length;
+        const totalCells = size * size;
+        const startId = this.cellToId(startPosition, size);
+        const goalId = this.cellToId(goalPosition, size);
+        const cameFrom = new Int32Array(totalCells);
+        const gScore = new Float64Array(totalCells);
+        const closedSet = new Uint8Array(totalCells);
+        const openHeap = new MinHeap();
+
+        cameFrom.fill(-1);
+        gScore.fill(Number.POSITIVE_INFINITY);
+        gScore[startId] = 0;
+        openHeap.push({ id: startId, priority: this.heuristicById(startId, goalId, size) });
+
         return {
             grid,
+            size,
+            goalId,
             goalPosition,
-            openSet: [startPosition],
-            openLookup: new Set([this.keyOf(startPosition)]),
-            closedSet: new Set(),
-            cameFrom: new Map(),
-            gScore: new Map([[this.keyOf(startPosition), 0]]),
-            fScore: new Map([[this.keyOf(startPosition), this.heuristic(startPosition, goalPosition)]]),
+            openHeap,
+            closedSet,
+            cameFrom,
+            gScore,
             isComplete: false,
             shortestPath: [],
         };
@@ -92,55 +199,53 @@ class MazeSolver {
         const visitedBatch = [];
         let iterations = 0;
 
-        while (session.openSet.length > 0 && !session.isComplete && iterations < iterationBudget) {
-            const currentIndex = this.findLowestFScoreIndex(session.openSet, session.fScore);
-            const current = session.openSet.splice(currentIndex, 1)[0];
-            const currentKey = this.keyOf(current);
-            session.openLookup.delete(currentKey);
-
-            if (session.closedSet.has(currentKey)) {
-                continue;
-            }
-
-            session.closedSet.add(currentKey);
-            visitedBatch.push(current);
-            iterations += 1;
-
-            if (current.row === session.goalPosition.row && current.col === session.goalPosition.col) {
-                session.isComplete = true;
-                session.shortestPath = this.reconstructPath(session.cameFrom, current);
+        while (session.openHeap.size > 0 && !session.isComplete && iterations < iterationBudget) {
+            const currentEntry = session.openHeap.pop();
+            if (!currentEntry) {
                 break;
             }
 
-            for (const neighbor of this.getNeighbors(session.grid, current)) {
-                const neighborKey = this.keyOf(neighbor);
+            const currentId = currentEntry.id;
 
-                if (session.closedSet.has(neighborKey)) {
+            if (session.closedSet[currentId] === 1) {
+                continue;
+            }
+
+            session.closedSet[currentId] = 1;
+            visitedBatch.push(this.idToCell(currentId, session.size));
+            iterations += 1;
+
+            if (currentId === session.goalId) {
+                session.isComplete = true;
+                session.shortestPath = this.reconstructPath(session.cameFrom, currentId, session.size);
+                break;
+            }
+
+            const neighborIds = this.getNeighborIds(session.grid, currentId, session.size);
+            const currentGScore = session.gScore[currentId];
+
+            for (const neighborId of neighborIds) {
+                if (session.closedSet[neighborId] === 1) {
                     continue;
                 }
 
-                const tentativeGScore = (session.gScore.get(currentKey) ?? Infinity) + 1;
-                const existingScore = session.gScore.get(neighborKey) ?? Infinity;
+                const tentativeGScore = currentGScore + 1;
+                const existingScore = session.gScore[neighborId];
 
                 if (tentativeGScore >= existingScore) {
                     continue;
                 }
 
-                session.cameFrom.set(neighborKey, current);
-                session.gScore.set(neighborKey, tentativeGScore);
-                session.fScore.set(
-                    neighborKey,
-                    tentativeGScore + this.heuristic(neighbor, session.goalPosition),
-                );
-
-                if (!session.openLookup.has(neighborKey)) {
-                    session.openSet.push(neighbor);
-                    session.openLookup.add(neighborKey);
-                }
+                session.cameFrom[neighborId] = currentId;
+                session.gScore[neighborId] = tentativeGScore;
+                session.openHeap.push({
+                    id: neighborId,
+                    priority: tentativeGScore + this.heuristicById(neighborId, session.goalId, session.size),
+                });
             }
         }
 
-        const done = session.isComplete || session.openSet.length === 0;
+        const done = session.isComplete || session.openHeap.size === 0;
         return {
             visitedBatch,
             done,
@@ -148,66 +253,56 @@ class MazeSolver {
         };
     }
 
-    getNeighbors(grid, cell) {
+    getNeighborIds(grid, cellId, size) {
+        const row = Math.floor(cellId / size);
+        const col = cellId % size;
         const neighbors = [];
-        const directions = [
-            { row: -1, col: 0 },
-            { row: 1, col: 0 },
-            { row: 0, col: -1 },
-            { row: 0, col: 1 },
-        ];
 
-        for (const direction of directions) {
-            const nextRow = cell.row + direction.row;
-            const nextCol = cell.col + direction.col;
-
-            if (nextRow < 0 || nextCol < 0 || nextRow >= grid.length || nextCol >= grid.length) {
-                continue;
-            }
-
-            if (grid[nextRow][nextCol] === 0) {
-                continue;
-            }
-
-            neighbors.push({ row: nextRow, col: nextCol });
+        if (row > 0 && grid[row - 1][col] === 1) {
+            neighbors.push(cellId - size);
+        }
+        if (row < size - 1 && grid[row + 1][col] === 1) {
+            neighbors.push(cellId + size);
+        }
+        if (col > 0 && grid[row][col - 1] === 1) {
+            neighbors.push(cellId - 1);
+        }
+        if (col < size - 1 && grid[row][col + 1] === 1) {
+            neighbors.push(cellId + 1);
         }
 
         return neighbors;
     }
 
-    heuristic(cell, goal) {
-        return Math.abs(cell.row - goal.row) + Math.abs(cell.col - goal.col);
+    heuristicById(cellId, goalId, size) {
+        const row = Math.floor(cellId / size);
+        const col = cellId % size;
+        const goalRow = Math.floor(goalId / size);
+        const goalCol = goalId % size;
+        return Math.abs(row - goalRow) + Math.abs(col - goalCol);
     }
 
-    findLowestFScoreIndex(openSet, fScore) {
-        let bestIndex = 0;
-        let bestScore = Infinity;
+    reconstructPath(cameFrom, currentId, size) {
+        const path = [];
+        let cursor = currentId;
 
-        for (let index = 0; index < openSet.length; index += 1) {
-            const score = fScore.get(this.keyOf(openSet[index])) ?? Infinity;
-            if (score < bestScore) {
-                bestScore = score;
-                bestIndex = index;
-            }
-        }
-
-        return bestIndex;
-    }
-
-    reconstructPath(cameFrom, current) {
-        const path = [current];
-        let cursor = current;
-
-        while (cameFrom.has(this.keyOf(cursor))) {
-            cursor = cameFrom.get(this.keyOf(cursor));
-            path.push(cursor);
+        while (cursor !== -1) {
+            path.push(this.idToCell(cursor, size));
+            cursor = cameFrom[cursor];
         }
 
         return path.reverse();
     }
 
-    keyOf(cell) {
-        return `${cell.row},${cell.col}`;
+    cellToId(cell, size) {
+        return cell.row * size + cell.col;
+    }
+
+    idToCell(cellId, size) {
+        return {
+            row: Math.floor(cellId / size),
+            col: cellId % size,
+        };
     }
 }
 
@@ -225,6 +320,17 @@ class MazeRenderer {
             solution: "#ffbf47",
         };
         this.cellSize = 0;
+        this.staticCanvas = document.createElement("canvas");
+        this.staticContext = this.staticCanvas.getContext("2d");
+        this.staticContext.imageSmoothingEnabled = false;
+        this.context.imageSmoothingEnabled = false;
+        this.renderCache = {
+            mazeGrid: null,
+            width: 0,
+            height: 0,
+            visitedCount: 0,
+            pathCount: 0,
+        };
     }
 
     resize(gridSize) {
@@ -232,10 +338,20 @@ class MazeRenderer {
         const viewportHeight = window.innerHeight;
         const availableHeight = Math.max(240, viewportHeight - bounds.top - 32);
         const dimension = Math.max(240, Math.floor(Math.min(bounds.width, availableHeight)));
+        const resized = this.canvas.width !== dimension || this.canvas.height !== dimension;
+
+        if (!resized) {
+            return false;
+        }
 
         this.canvas.width = dimension;
         this.canvas.height = dimension;
+        this.staticCanvas.width = dimension;
+        this.staticCanvas.height = dimension;
         this.cellSize = dimension / gridSize;
+        this.context.imageSmoothingEnabled = false;
+        this.staticContext.imageSmoothingEnabled = false;
+        return true;
     }
 
     render(state) {
@@ -243,12 +359,61 @@ class MazeRenderer {
             return;
         }
 
-        this.resize(state.mazeGrid.length);
-        const context = this.context;
+        const resized = this.resize(state.mazeGrid.length);
+        const mazeChanged = this.renderCache.mazeGrid !== state.mazeGrid;
+        const countsReset =
+            state.renderedVisitedCount < this.renderCache.visitedCount ||
+            state.renderedPathCount < this.renderCache.pathCount;
+        const requiresFullRedraw = resized || mazeChanged || countsReset;
+
+        if (resized || mazeChanged) {
+            this.drawStaticLayer(state);
+        }
+
+        if (requiresFullRedraw) {
+            this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.context.drawImage(this.staticCanvas, 0, 0);
+            this.drawCells(
+                state.visitedOrder.slice(0, state.renderedVisitedCount),
+                this.palette.visited,
+                this.context,
+            );
+            this.drawCells(
+                state.shortestPath.slice(0, state.renderedPathCount),
+                this.palette.solution,
+                this.context,
+            );
+        } else {
+            this.drawCells(
+                state.visitedOrder.slice(this.renderCache.visitedCount, state.renderedVisitedCount),
+                this.palette.visited,
+                this.context,
+            );
+            this.drawCells(
+                state.shortestPath.slice(this.renderCache.pathCount, state.renderedPathCount),
+                this.palette.solution,
+                this.context,
+            );
+        }
+
+        this.drawMarker(state.startPosition, this.palette.start, this.context);
+        this.drawMarker(state.goalPosition, this.palette.goal, this.context);
+
+        this.renderCache = {
+            mazeGrid: state.mazeGrid,
+            width: this.canvas.width,
+            height: this.canvas.height,
+            visitedCount: state.renderedVisitedCount,
+            pathCount: state.renderedPathCount,
+        };
+    }
+
+    drawStaticLayer(state) {
+        const context = this.staticContext;
         const grid = state.mazeGrid;
         const size = grid.length;
 
-        context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        context.clearRect(0, 0, this.staticCanvas.width, this.staticCanvas.height);
 
         for (let row = 0; row < size; row += 1) {
             for (let col = 0; col < size; col += 1) {
@@ -257,14 +422,11 @@ class MazeRenderer {
             }
         }
 
-        this.drawCells(state.visitedOrder.slice(0, state.renderedVisitedCount), this.palette.visited);
-        this.drawCells(state.shortestPath.slice(0, state.renderedPathCount), this.palette.solution);
-        this.drawMarker(state.startPosition, this.palette.start);
-        this.drawMarker(state.goalPosition, this.palette.goal);
+        this.drawMarker(state.startPosition, this.palette.start, context);
+        this.drawMarker(state.goalPosition, this.palette.goal, context);
     }
 
-    drawCells(cells, color) {
-        const context = this.context;
+    drawCells(cells, color, context) {
         context.fillStyle = color;
 
         for (const cell of cells) {
@@ -277,14 +439,14 @@ class MazeRenderer {
         }
     }
 
-    drawMarker(cell, color) {
+    drawMarker(cell, color, context) {
         if (!cell) {
             return;
         }
 
         const inset = Math.max(2, this.cellSize * 0.18);
-        this.context.fillStyle = color;
-        this.context.fillRect(
+        context.fillStyle = color;
+        context.fillRect(
             cell.col * this.cellSize + inset,
             cell.row * this.cellSize + inset,
             Math.max(2, this.cellSize - inset * 2),
@@ -314,8 +476,8 @@ class AppController {
         this.animationConfig = {
             easy: { exploreBatchSize: 4, exploreDelay: 18, pathDelay: 28 },
             normal: { exploreBatchSize: 10, exploreDelay: 10, pathDelay: 18 },
-            hard: { exploreBatchSize: 36, exploreDelay: 4, pathDelay: 8 },
-            superhard: { exploreBatchSize: 120, exploreDelay: 0, pathDelay: 2 },
+            hard: { exploreBatchSize: 64, exploreDelay: 2, pathDelay: 4 },
+            superhard: { exploreBatchSize: 320, exploreDelay: 0, pathDelay: 0 },
         };
     }
 
@@ -393,7 +555,15 @@ class AppController {
         }
 
         const size = this.currentGridSize();
-        const generated = this.generator.generate(size);
+        const generated = await this.generator.generate(size, async () => {
+            await this.yieldToBrowser();
+            return token === this.runToken;
+        });
+
+        if (!generated || token !== this.runToken) {
+            return;
+        }
+
         this.state.mazeGrid = generated.grid;
         this.state.startPosition = generated.startPosition;
         this.state.goalPosition = generated.goalPosition;
@@ -535,6 +705,10 @@ class AppController {
     }
 
     pause(duration) {
+        if (duration <= 0) {
+            return this.yieldToBrowser();
+        }
+
         return new Promise((resolve) => {
             window.setTimeout(resolve, duration);
         });
