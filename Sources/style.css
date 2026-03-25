@@ -21,6 +21,8 @@
     --radius-sm: 12px;
 }
 
+/* The page uses stacked glass-like panels so the maze stays visually dominant
+   while controls and status remain compact above it. */
 * {
     box-sizing: border-box;
 }
@@ -166,6 +168,8 @@ select:disabled {
     margin-top: 20px;
 }
 
+/* The stage reserves a large square-friendly area; the canvas itself scales to
+   whatever exact square dimension the renderer computes at runtime. */
 .maze-card,
 .status-card {
     border-radius: var(--radius-lg);
@@ -267,6 +271,8 @@ select:disabled {
 }
 
 @media (min-width: 720px) {
+    /* Wider layouts keep status above the maze and use extra width to enlarge
+       the square render area instead of moving status to the side. */
     .app-shell {
         width: min(1540px, calc(100% - 24px));
         padding-top: 18px;

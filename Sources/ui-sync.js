@@ -1,3 +1,6 @@
+// UI sync maps the controller state into visible labels and control locking.
+// It intentionally derives the whole screen from state so failed requests and
+// rollbacks can restore a consistent UI with one sync pass.
 (function initializeMazeUiSync() {
     const { DIFFICULTY_OPTIONS, STATUS_LABELS } = window.MazeAppConfig;
 
@@ -25,6 +28,8 @@
         const isGenerating = state.currentStatus === "generating";
         const isExploring = state.currentStatus === "exploring";
         const isHighlighting = state.currentStatus === "highlighting";
+        // Lock controls from the state model, not from DOM history, so forced
+        // events and rollback paths still converge to the intended UI rules.
         const controlsLocked = isGenerating || isHighlighting || isExploring;
 
         elements.difficultySelect.disabled = controlsLocked;

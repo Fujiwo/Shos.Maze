@@ -1,3 +1,5 @@
+// WorkerHeap is a small priority queue used by A* inside the Worker. Keeping it
+// separate makes the search logic easier to read and keeps heap operations local.
 (function initializeMazeWorkerHeap(workerScope) {
     class WorkerHeap {
         constructor() {

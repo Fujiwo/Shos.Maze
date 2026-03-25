@@ -1,3 +1,5 @@
+// The Worker bootstrap wires message dispatch to the generation and solve
+// algorithms, while tracking cancellation independently from the main thread UI.
 importScripts("worker-message-protocol.js", "worker/worker-heap.js", "worker/worker-messages.js", "worker/worker-algorithms.js");
 
 const { runGenerateRequest, runSolveRequest } = self.MazeWorkerAlgorithms;
@@ -16,6 +18,8 @@ self.addEventListener("message", (event) => {
     const message = event.data;
 
     if (message.type === MESSAGE_TYPES.cancel) {
+        // Cancellation is tracked locally so long-running loops can stop without
+        // relying on terminating the whole Worker process.
         canceledRequests.add(message.requestId);
         return;
     }
@@ -36,6 +40,8 @@ async function handleGenerateRequest(message) {
             isCanceled,
             pauseWorker,
         });
+        // Canceled work is discarded silently because a newer request has already
+        // taken ownership of the UI state on the main thread.
         if (!result || isCanceled(message.requestId)) {
             clearCanceled(message.requestId);
             return;

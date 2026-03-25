@@ -1,3 +1,6 @@
+// AppController coordinates UI events, state transitions, rendering, persistence,
+// and Worker-backed requests. It is the single place that decides when the app
+// may generate, solve, highlight, or roll back after a failed request.
 (function initializeMazeAppController() {
     const {
         ANIMATION_CONFIG,
@@ -87,6 +90,8 @@
                 return;
             }
 
+            // Capture the pre-change view first so a failed generate request can
+            // restore the previous maze and labels instead of leaving mixed state.
             const previousSnapshot = this.captureRequestSnapshot();
             this.state.selectedDifficulty = value;
             persistDifficulty(this.state.selectedDifficulty);
@@ -128,6 +133,8 @@
             const label = errorInfo.kind === "worker" ? "Maze worker error" : "Maze worker task failed";
             console.error(label, errorInfo.message);
 
+            // Ignore unrelated failures once the controller has already moved on
+            // to another request or back to a stable screen state.
             if (
                 this.requestSnapshotKind !== "generate" &&
                 this.requestSnapshotKind !== "solve" &&
@@ -147,6 +154,8 @@
         }
 
         startGenerateRequest(snapshotOverride = null) {
+            // The UI is disabled in these states, but the controller still guards
+            // against forced DOM events or direct method calls.
             if (this.isInteractionLocked()) {
                 this.syncUI();
                 this.requestRender();
@@ -169,6 +178,8 @@
                 return;
             }
 
+            // Solving clears the animation progress counters, so keep a snapshot
+            // of the rendered state in case the request fails mid-flight.
             this.rememberRequestSnapshot("solve");
             resetAnimationState(this.state);
             this.setStatus("exploring");
@@ -220,6 +231,8 @@
         }
 
         captureRequestSnapshot() {
+            // Snapshots intentionally keep references to the last consistent typed
+            // arrays so rollback can restore the exact logical and rendered view.
             return {
                 currentStatus: this.state.currentStatus,
                 goalId: this.state.goalId,
@@ -245,6 +258,8 @@
                 return false;
             }
 
+            // The runtime only uses idle during startup. Any restored runtime
+            // state should map back to a stable, user-facing ready screen.
             this.state.currentStatus =
                 this.requestSnapshot.currentStatus === "idle"
                     ? "ready"

@@ -1,3 +1,6 @@
+// MazeWorkerRequestClient is the main-thread bridge to the Worker. It serializes
+// request lifecycles, cancels stale work, and filters responses so only the most
+// recent generate or solve request can update the UI.
 (function initializeMazeWorkerRequestClient() {
     const { MESSAGE_TYPES, WORKER_SCRIPT } = window.MazeAppConfig;
     const MESSAGE_HANDLER_NAMES = {
@@ -33,6 +36,8 @@
         }
 
         handleWorkerMessage(message) {
+            // Late responses from canceled or superseded requests must be ignored
+            // to keep the screen aligned with the latest selected difficulty.
             if (message.requestId !== this.activeRequestId) {
                 return;
             }
@@ -80,6 +85,8 @@
                 return 0;
             }
 
+            // Every new request supersedes the previous one so stale progress
+            // cannot race the current UI state.
             this.cancelActiveRequest();
             const requestId = ++this.requestCounter;
             this.activeRequestId = requestId;

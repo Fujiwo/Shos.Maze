@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Main application shell: introduction, controls, status, and maze stage. -->
     <main class="app-shell">
         <header class="hero">
             <p class="eyebrow">Vanilla JS Maze Lab</p>
@@ -29,6 +30,7 @@
             </div>
         </section>
 
+        <!-- Status stays above the maze so the square render area gets priority. -->
         <section class="workspace">
             <section class="status-card" aria-live="polite">
                 <h2>Status</h2>
@@ -67,6 +69,7 @@
         </section>
     </main>
 
+    <!-- Classic scripts are loaded in dependency order because modules are not used here. -->
     <script src="worker-message-protocol.js" defer></script>
 
     <script src="app-config.js" defer></script>

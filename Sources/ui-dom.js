@@ -1,3 +1,5 @@
+// DOM helpers isolate element lookup and event wiring so the controller can stay
+// focused on state and request orchestration rather than browser API details.
 (function initializeMazeUiDom() {
     function captureElements() {
         return {

@@ -1,3 +1,6 @@
+// MazeRenderCanvas owns canvas sizing and drawing. It keeps static maze pixels,
+// coordinate caches, and incremental overlays separate so large grids can redraw
+// without repainting every cell on every animation frame.
 (function initializeMazeRenderCanvas() {
     const { MAZE_PALETTE } = window.MazeAppConfig;
 
@@ -65,6 +68,8 @@
                 return;
             }
 
+            // Cache every cell's drawing coordinates once per size/dimension pair
+            // so render-time work stays proportional to changed cells only.
             const totalCells = gridSize * gridSize;
             const xByCellId = new Float32Array(totalCells);
             const yByCellId = new Float32Array(totalCells);
@@ -107,6 +112,8 @@
             const countsReset =
                 state.renderedVisitedCount < this.renderCache.visitedCount ||
                 state.renderedPathCount < this.renderCache.pathCount;
+            // Full redraw is only needed when geometry changed, the maze changed,
+            // or animation progress moved backward after a reset or rollback.
             const requiresFullRedraw = resized || mazeChanged || countsReset;
 
             if (resized || mazeChanged) {
@@ -167,6 +174,8 @@
             context.clearRect(0, 0, this.staticCanvas.width, this.staticCanvas.height);
 
             if (this.pathSupport) {
+                // Path2D drastically reduces draw calls on dense grids, while the
+                // fillRect branch preserves compatibility in simpler environments.
                 for (let cellId = 0; cellId < grid.length; cellId += 1) {
                     const targetPath = grid[cellId] === 0 ? wallPath : routePath;
                     targetPath.rect(

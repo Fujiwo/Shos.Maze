@@ -1,8 +1,13 @@
+// Worker algorithms perform maze generation and A* search off the main thread.
+// The implementation favors typed arrays, cellId math, and batched progress
+// messages to keep large mazes responsive even at Super Hard size.
 (function initializeMazeWorkerAlgorithms(workerScope) {
     const WorkerHeap = workerScope.MazeWorkerHeap;
 
     async function runGenerateRequest(size, requestId, controls) {
         const { isCanceled, pauseWorker } = controls;
+        // A flat Uint8Array keeps memory compact and lets generation use cellId
+        // arithmetic without allocating row/col wrapper objects.
         const grid = new Uint8Array(size * size);
         const stack = [];
         const startId = size + 1;
@@ -30,6 +35,8 @@
             }
 
             stepsSinceYield += 1;
+            // Yield periodically so very large generation runs do not monopolize
+            // the Worker event loop and delay cancellation handling.
             if (stepsSinceYield >= 2048) {
                 stepsSinceYield = 0;
                 await pauseWorker();
@@ -45,6 +52,8 @@
     async function runSolveRequest(grid, size, startId, goalId, batchSize, requestId, controls) {
         const { isCanceled, pauseWorker, postSolveRequestProgress } = controls;
         const totalCells = size * size;
+        // Typed arrays keep the A* bookkeeping dense and predictable for large
+        // grids, where object-heavy structures become noticeably more expensive.
         const cameFrom = new Int32Array(totalCells);
         const gScore = new Float64Array(totalCells);
         const closedSet = new Uint8Array(totalCells);
@@ -110,6 +119,8 @@
             }
 
             iterationsSinceYield += 1;
+            // Progress is emitted in batches so the main thread can animate the
+            // search without paying the overhead of one message per visited cell.
             if (iterationsSinceYield >= batchSize) {
                 iterationsSinceYield = 0;
                 if (currentBatchCount > 0) {
@@ -244,6 +255,8 @@
     }
 
     function heuristicById(cellId, goalId, size) {
+        // cellId-based Manhattan distance avoids constructing coordinate objects
+        // while keeping the heuristic easy to audit.
         const row = Math.floor(cellId / size);
         const col = cellId % size;
         const goalRow = Math.floor(goalId / size);

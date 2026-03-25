@@ -1,3 +1,5 @@
+// App config defines shared constants that shape UI labels, difficulty sizing,
+// animation pacing, palette choices, and the Worker entry point.
 (function initializeMazeAppConfig() {
     const { MESSAGE_TYPES } = window.MazeWorkerMessageProtocol;
 
@@ -18,6 +20,8 @@
     };
 
     const ANIMATION_CONFIG = {
+        // Batch sizes scale with maze size so smaller mazes stay readable while
+        // larger ones avoid overwhelming the main thread with tiny updates.
         easy: { workerBatchSize: 24, pathBatchSize: 2, pathDelay: 18 },
         normal: { workerBatchSize: 96, pathBatchSize: 4, pathDelay: 10 },
         hard: { workerBatchSize: 320, pathBatchSize: 12, pathDelay: 0 },

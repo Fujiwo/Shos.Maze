@@ -1,3 +1,6 @@
+// App state centralizes the persistent maze model and the incremental animation
+// counters that rendering depends on. The helpers here update typed-array-backed
+// state in place so the controller can keep request handling straightforward.
 (function initializeMazeAppState() {
     const { DIFFICULTY_OPTIONS, STORAGE_KEY } = window.MazeAppConfig;
 
@@ -35,6 +38,8 @@
     }
 
     function resetAnimationState(state) {
+        // Reset animation buffers without touching the current maze so generate,
+        // solve, and rollback flows can decide independently what to preserve.
         state.visitedOrder = new Int32Array(1024);
         state.visitedCount = 0;
         state.shortestPath = new Int32Array(0);
@@ -46,6 +51,8 @@
         const requiredSize = state.visitedCount + batch.length;
 
         if (requiredSize > state.visitedOrder.length) {
+            // Grow geometrically to keep append cost amortized when the Worker
+            // reports long exploration histories on larger mazes.
             let nextLength = state.visitedOrder.length;
             while (nextLength < requiredSize) {
                 nextLength *= 2;
