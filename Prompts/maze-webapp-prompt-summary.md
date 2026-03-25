@@ -18,6 +18,7 @@
 7. ランタイム不具合修正とテスト導入プロンプト
 8. 仕様差分レビュー プロンプト
 9. ソースコード可読性改善プロンプト
+10. README / リポジトリ文書整備プロンプト
 
 ## 3. 既存プロンプトファイル
 ### 3.1 初期計画プロンプト
@@ -31,6 +32,14 @@
 - 役割:
   - `Sources` 配下に英語コメントを追加し、可読性を高める
   - file responsibility、状態遷移、パフォーマンス上の意図、Worker 連携などを説明する
+
+### 3.3 README / 文書整備プロンプト
+- 専用ファイル:
+  - 現時点では専用の独立ファイルは置いていない
+- 役割:
+  - 実装済みの内容と関連文書を突き合わせて `README.md` / `README.ja.md` を更新する
+  - GitHub 向けの冒頭要約、スクリーンショット、アーキテクチャ図、詳細ディレクトリ構成を整備する
+  - 英語版を既定 README、 日本語版を補助 README として整理する
 
 ## 4. 実際に使ったプロンプトの要約
 以下は、このリポジトリで実際に有効だったプロンプトの型を要約したものである。
@@ -180,6 +189,23 @@
 - obvious なコメントを避ける
 - 保守性重視
 
+### 4.10 README / リポジトリ文書整備プロンプト
+#### 目的
+実装済みの状態と関連記録に整合する README 群へ更新し、GitHub 上で把握しやすい入口文書にする。
+
+#### 主な意図
+- `README.md` を英語版の既定 README として整える
+- `README.ja.md` を日本語版として維持し、相互リンクを張る
+- `Specifications` と `Works/Plans` を参照して、説明内容を実装済みの事実へ合わせる
+- スクリーンショット、バッジ、アーキテクチャ図、詳細ディレクトリ構成を加える
+
+#### 期待する内容
+- 実装・仕様・検証記録と矛盾しない要約
+- desktop / mobile の両スクリーンショット
+- Worker 境界、描画層、状態管理を含むレイヤ図
+- GitHub 向けの短い機能サマリー
+- 英日 README の役割分担を明確にした構成
+
 ## 5. 時系列ログ
 以下は、このリポジトリで実際に進んだ prompt ベースの作業の流れを、時系列で整理したものである。
 
@@ -242,6 +268,14 @@
 - 必要に応じて HTML / CSS に構造コメントを追加
 - 実行用プロンプトは `Prompts/sourcecode-comment-prompt.md` に保存
 
+### 5.11 README / リポジトリ文書整備フェーズ
+- 実装内容と関連ドキュメントに整合する README へ更新するプロンプトを使用
+- 既存の簡素な README を、実装済み機能・性能改善・テスト状況を反映した文書へ差し替え
+- スクリーンショット節、詳細ディレクトリ構成、アーキテクチャ図、GitHub 向け要約表を追加
+- 英語版 README を既定の `README.md`、日本語版を `README.ja.md` として整理
+- `README-assets/shos-maze-home.png` と `README-assets/shos-maze-home-mobile.png` を追加し、desktop / mobile の 2 枚構成にした
+- バッジ、詳細レイヤ図、相互リンクを含め、リポジトリ入口文書として完成度を上げた
+
 ## 6. 再利用用の短いプロンプト雛形
 以下は、このリポジトリで再利用しやすい短い雛形である。
 
@@ -266,9 +300,14 @@ Playwright ベースの E2E テストを追加または更新し、load / genera
 ### 6.7 ソースコメント追加
 `Sources` 配下に高価値な英語コメントを追加してください。最初に計画を立て、すべての JavaScript ファイルへ file responsibility コメントを追加し、状態遷移、Worker、失敗時復元、描画最適化の意図を優先的に説明してください。
 
+### 6.8 README / 文書整備
+現在の `Sources`、`Specifications`、`Works/Plans`、既存 README を確認し、実装済み内容に整合する README 群へ更新してください。既定の `README.md` は英語版、`README.ja.md` は日本語版として扱い、GitHub 向け要約、スクリーンショット、アーキテクチャ図、詳細ディレクトリ構成を含めてください。
+
 ## 7. 関連ドキュメント
 - `Prompts/maze-webapp-prompt.md`
 - `Prompts/sourcecode-comment-prompt.md`
+- `README.md`
+- `README.ja.md`
 - `Works/Plans/maze-webapp-development-plan.md`
 - `Works/Plans/maze-webapp-sources-refactoring-plan.md`
 - `Works/Plans/maze-webapp-runtime-bugfix-and-testing-plan.md`
