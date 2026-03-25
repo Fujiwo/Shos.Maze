@@ -181,7 +181,83 @@ test.describe("Maze runtime smoke", () => {
         expect(consoleErrors).toEqual([]);
     });
 
-    test("cancels stale generate requests during rapid difficulty changes", async ({ page }) => {
+    test("ignores forced difficulty changes while solve request is active", async ({ page }) => {
+        const pageErrors = [];
+        const consoleErrors = [];
+
+        await page.addInitScript(() => {
+            const NativeWorker = window.Worker;
+            const outboundMessages = [];
+
+            window.__mazeWorkerOutboundMessages = outboundMessages;
+
+            class TrackingWorker extends NativeWorker {
+                postMessage(message, ...rest) {
+                    outboundMessages.push({
+                        requestId: message?.requestId ?? null,
+                        size: message?.size ?? null,
+                        type: message?.type ?? null,
+                    });
+                    return super.postMessage(message, ...rest);
+                }
+            }
+
+            Object.defineProperty(window, "Worker", {
+                configurable: true,
+                writable: true,
+                value: TrackingWorker,
+            });
+        });
+
+        page.on("pageerror", (error) => {
+            pageErrors.push(error.message);
+        });
+
+        page.on("console", (message) => {
+            if (message.type() === "error") {
+                consoleErrors.push(message.text());
+            }
+        });
+
+        await page.goto("/");
+        await waitForReadyState(page);
+
+        await page.getByRole("combobox", { name: "Difficulty" }).selectOption("superhard");
+        await waitForReadyState(page);
+
+        const baselineMessages = await page.evaluate(() => window.__mazeWorkerOutboundMessages.length);
+
+        await page.getByRole("button", { name: "Start Exploration" }).click();
+        await expect(page.locator("#difficulty-select")).toBeDisabled();
+        await expect(page.locator("#generate-button")).toBeDisabled();
+
+        await page.evaluate(() => {
+            const select = document.getElementById("difficulty-select");
+            for (const value of ["easy", "normal", "hard"]) {
+                select.value = value;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        });
+
+        await page.waitForTimeout(300);
+
+        const outboundMessages = await page.evaluate(() => window.__mazeWorkerOutboundMessages);
+        const messagesAfterExploreStart = outboundMessages.slice(baselineMessages);
+        const generateMessagesAfterExploreStart = messagesAfterExploreStart.filter((message) => message.type === "generate");
+        const solveMessagesAfterExploreStart = messagesAfterExploreStart.filter((message) => message.type === "solve");
+
+        expect(solveMessagesAfterExploreStart.length).toBe(1);
+        expect(generateMessagesAfterExploreStart.length).toBe(0);
+
+        await expect(page.locator("#difficulty-text")).toHaveText("Super Hard");
+        await expect(page.locator("#grid-size-text")).toHaveText("201 x 201");
+        await expect(page.locator("#difficulty-select")).toHaveValue("superhard");
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
+
+    test("accepts only the first difficulty change during a rapid burst and avoids stale requests", async ({ page }) => {
         const pageErrors = [];
         const consoleErrors = [];
 
@@ -231,8 +307,8 @@ test.describe("Maze runtime smoke", () => {
         });
 
         await waitForReadyState(page);
-        await expect(page.locator("#difficulty-text")).toHaveText("Super Hard");
-        await expect(page.locator("#grid-size-text")).toHaveText("201 x 201");
+        await expect(page.locator("#difficulty-text")).toHaveText("Normal");
+        await expect(page.locator("#grid-size-text")).toHaveText("51 x 51");
 
         const outboundMessages = await page.evaluate(() => window.__mazeWorkerOutboundMessages);
         const cancelMessages = outboundMessages.filter((message) => message.type === "cancel");
@@ -240,8 +316,8 @@ test.describe("Maze runtime smoke", () => {
         const lastMessage = outboundMessages[outboundMessages.length - 1];
 
         expect(cancelMessages.length).toBeGreaterThan(0);
-        expect(generateMessages.length).toBeGreaterThanOrEqual(4);
-        expect(lastMessage).toEqual({ requestId: expect.any(Number), size: 201, type: "generate" });
+        expect(generateMessages.length).toBe(2);
+        expect(lastMessage).toEqual({ requestId: expect.any(Number), size: 51, type: "generate" });
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });

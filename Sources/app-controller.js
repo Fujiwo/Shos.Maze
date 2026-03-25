@@ -71,7 +71,17 @@
         }
 
         handleDifficultyChange(value) {
+            if (
+                this.state.currentStatus === "generating" ||
+                this.state.currentStatus === "exploring" ||
+                this.state.currentStatus === "highlighting"
+            ) {
+                this.syncUI();
+                return;
+            }
+
             if (!(value in DIFFICULTY_OPTIONS)) {
+                this.syncUI();
                 return;
             }
 
