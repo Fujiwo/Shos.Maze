@@ -30,7 +30,7 @@
 ### 3.2 ソースコメント追加プロンプト
 - ファイル: `Prompts/sourcecode-comment-prompt.md`
 - 役割:
-  - `Sources` 配下に英語コメントを追加し、可読性を高める
+  - `Sources/js` 配下の JavaScript と `Sources/index.html` / `Sources/style.css` に英語コメントを追加し、可読性を高める
   - file responsibility、状態遷移、パフォーマンス上の意図、Worker 連携などを説明する
 
 ### 3.3 README / 文書整備プロンプト
@@ -183,6 +183,7 @@
 - 非自明ロジックを説明する
 - 描画、Worker、rollback、request lifecycle の意図を明示する
 - HTML / CSS にも必要最小限の構造コメントを入れる
+- 現行構成では主対象を `Sources/js` 配下として扱う
 
 #### 期待する内容
 - 挙動変更なし
@@ -298,7 +299,7 @@
 Playwright ベースの E2E テストを追加または更新し、load / generate / solve / Worker availability / request cancellation / interaction locking を検証してください。拡張由来エラーはアプリ本体由来と分離してください。
 
 ### 6.7 ソースコメント追加
-`Sources` 配下に高価値な英語コメントを追加してください。最初に計画を立て、すべての JavaScript ファイルへ file responsibility コメントを追加し、状態遷移、Worker、失敗時復元、描画最適化の意図を優先的に説明してください。
+`Sources/js` 配下の JavaScript と `Sources/index.html` / `Sources/style.css` に高価値な英語コメントを追加してください。最初に計画を立て、すべての JavaScript ファイルへ file responsibility コメントを追加し、状態遷移、Worker、失敗時復元、描画最適化の意図を優先的に説明してください。
 
 ### 6.8 README / 文書整備
 現在の `Sources`、`Specifications`、`Works/Plans`、既存 README を確認し、実装済み内容に整合する README 群へ更新してください。既定の `README.md` は英語版、`README.ja.md` は日本語版として扱い、GitHub 向け要約、スクリーンショット、アーキテクチャ図、詳細ディレクトリ構成を含めてください。
