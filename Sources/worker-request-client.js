@@ -11,6 +11,14 @@
             this.handlers = handlers;
             this.requestCounter = 0;
             this.activeRequestId = 0;
+            this.initializationError = null;
+            this.worker = null;
+
+            if (typeof Worker !== "function") {
+                this.initializationError = "Web Worker is not supported in this browser.";
+                return;
+            }
+
             this.worker = new Worker(WORKER_SCRIPT);
             this.worker.addEventListener("message", (event) => {
                 this.handleWorkerMessage(event.data);
@@ -64,6 +72,14 @@
         }
 
         startGenerateRequest(size) {
+            if (!this.worker) {
+                this.emitFailure({
+                    kind: "task",
+                    message: this.initializationError || "Maze worker is unavailable.",
+                });
+                return 0;
+            }
+
             this.cancelActiveRequest();
             const requestId = ++this.requestCounter;
             this.activeRequestId = requestId;
@@ -76,6 +92,14 @@
         }
 
         startSolveRequest(payload) {
+            if (!this.worker) {
+                this.emitFailure({
+                    kind: "task",
+                    message: this.initializationError || "Maze worker is unavailable.",
+                });
+                return 0;
+            }
+
             this.cancelActiveRequest();
             const requestId = ++this.requestCounter;
             this.activeRequestId = requestId;
