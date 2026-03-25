@@ -42,18 +42,35 @@
 - HTML5
 - CSS3
 - JavaScript ES6+
+- Web Worker
 - 外部ライブラリ不使用
 
 ### 3.2 実行環境
 - クライアントサイドのみで完結すること
 - モダンブラウザで動作すること
 - デスクトップ、タブレット、スマートフォンに対応すること
+- Web Worker が利用可能な環境では、迷路生成と経路探索の重い計算を Worker 上で実行すること
 
 ### 3.3 実装ファイル構成
 実装時の対象ファイルは以下を想定する。
 - Sources/index.html
 - Sources/style.css
-- Sources/main.js
+- Sources/worker-message-protocol.js
+- Sources/app-config.js
+- Sources/app-state.js
+- Sources/app-timing.js
+- Sources/ui-dom.js
+- Sources/ui-sync.js
+- Sources/render-scheduler.js
+- Sources/render-canvas.js
+- Sources/worker-request-client.js
+- Sources/app-controller.js
+- Sources/app-bootstrap.js
+- Sources/worker-bootstrap.js
+- Sources/worker/worker-heap.js
+- Sources/worker/worker-messages.js
+- Sources/worker/worker-algorithms.js
+- Sources/favicon.svg
 - README.md
 - LICENSE.md
 
@@ -361,24 +378,31 @@ localStorage に保存する対象は以下とする。
 - Hard サイズでも極端なカクつきが発生しないこと
 - Super Hard サイズでも操作不能な状態に陥らないこと
 - 必要に応じて複数セル単位のバッチ描画を行える設計とすること
+- 必要に応じて静的レイヤーキャッシュ、差分再描画、座標キャッシュ、Path2D を用いたバッチ描画を利用できる設計とすること
+- 迷路生成および探索計算は、メインスレッド占有を避けるため Worker へ委譲できる設計とすること
 
 ## 13. アーキテクチャ仕様
 ### 13.1 設計方針
 - ロジックと描画を分離すること
-- クラスベースで責務を明確化すること
+- モジュールまたはクラス単位で責務を明確化すること
+- UI、状態管理、描画、Worker 通信、Worker 内アルゴリズムを分離すること
 
-### 13.2 クラス責務
-#### MazeGenerator
-- 迷路生成を担当すること
-
-#### MazeSolver
-- 経路探索と最短経路復元を担当すること
-
-#### MazeRenderer
-- canvas 描画と再描画を担当すること
-
+### 13.2 主要コンポーネント責務
 #### AppController
-- UI イベント、状態管理、永続化、各クラス連携を担当すること
+- UI イベント、状態管理、永続化、描画要求、Worker 要求開始を担当すること
+
+#### MazeRenderCanvas
+- canvas 描画、再描画、リサイズ対応、静的レイヤーキャッシュを担当すること
+
+#### MazeWorkerRequestClient
+- Worker の初期化、要求送信、キャンセル、完了通知、失敗通知を担当すること
+
+#### Worker Algorithms
+- Recursive Backtracker による迷路生成を担当すること
+- A* による経路探索と最短経路復元を担当すること
+
+#### App State and UI Sync
+- 状態オブジェクト生成、永続化補助、探索進行反映、UI の有効無効同期を担当すること
 
 ## 14. エラー処理仕様
 以下のケースではアプリケーションが破綻しないこと。
@@ -386,6 +410,7 @@ localStorage に保存する対象は以下とする。
 - 不正な Difficulty 値が保存されていた場合
 - 探索開始前に迷路が未生成だった場合
 - リサイズイベントが連続発生した場合
+- Web Worker が利用できない場合
 - 迷路生成処理または探索処理が失敗した場合
 
 対処方針:
@@ -394,6 +419,7 @@ localStorage に保存する対象は以下とする。
 - localStorage が利用できない場合は保存機能のみ無効化し、実行時設定で継続利用可能とすること
 - 実行不能時は状態を維持し、UI を壊さないこと
 - リサイズ時は進行中アニメーションの計算結果を破棄しないこと
+- Web Worker が利用できない場合は、ページ表示と UI は維持し、Worker を必要とする迷路生成および探索要求は失敗として扱うこと
 - 迷路生成失敗時は、直前まで正常表示されていた旧迷路、探索結果、最短経路表示進行度を維持すること
 - 失敗時に新しい Difficulty 表示やグリッドサイズ表示だけが先行して更新される不整合を生じさせてはならないこと
 

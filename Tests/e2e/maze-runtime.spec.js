@@ -7,6 +7,32 @@ async function waitForReadyState(page) {
     await expect(page.locator("#explore-button")).toBeEnabled();
 }
 
+async function installTrackingWorker(page) {
+    await page.addInitScript(() => {
+        const NativeWorker = window.Worker;
+        const outboundMessages = [];
+
+        window.__mazeWorkerOutboundMessages = outboundMessages;
+
+        class TrackingWorker extends NativeWorker {
+            postMessage(message, ...rest) {
+                outboundMessages.push({
+                    requestId: message?.requestId ?? null,
+                    size: message?.size ?? null,
+                    type: message?.type ?? null,
+                });
+                return super.postMessage(message, ...rest);
+            }
+        }
+
+        Object.defineProperty(window, "Worker", {
+            configurable: true,
+            writable: true,
+            value: TrackingWorker,
+        });
+    });
+}
+
 test.describe("Maze runtime smoke", () => {
     test("loads favicon without browser resource errors", async ({ page }) => {
         await page.goto("/");
@@ -106,29 +132,7 @@ test.describe("Maze runtime smoke", () => {
         const pageErrors = [];
         const consoleErrors = [];
 
-        await page.addInitScript(() => {
-            const NativeWorker = window.Worker;
-            const outboundMessages = [];
-
-            window.__mazeWorkerOutboundMessages = outboundMessages;
-
-            class TrackingWorker extends NativeWorker {
-                postMessage(message, ...rest) {
-                    outboundMessages.push({
-                        requestId: message?.requestId ?? null,
-                        size: message?.size ?? null,
-                        type: message?.type ?? null,
-                    });
-                    return super.postMessage(message, ...rest);
-                }
-            }
-
-            Object.defineProperty(window, "Worker", {
-                configurable: true,
-                writable: true,
-                value: TrackingWorker,
-            });
-        });
+        await installTrackingWorker(page);
 
         page.on("pageerror", (error) => {
             pageErrors.push(error.message);
@@ -159,7 +163,7 @@ test.describe("Maze runtime smoke", () => {
         await page.evaluate(() => {
             const generateButton = document.getElementById("generate-button");
             for (let index = 0; index < 12; index += 1) {
-                generateButton.click();
+                generateButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
             }
         });
 
@@ -185,29 +189,7 @@ test.describe("Maze runtime smoke", () => {
         const pageErrors = [];
         const consoleErrors = [];
 
-        await page.addInitScript(() => {
-            const NativeWorker = window.Worker;
-            const outboundMessages = [];
-
-            window.__mazeWorkerOutboundMessages = outboundMessages;
-
-            class TrackingWorker extends NativeWorker {
-                postMessage(message, ...rest) {
-                    outboundMessages.push({
-                        requestId: message?.requestId ?? null,
-                        size: message?.size ?? null,
-                        type: message?.type ?? null,
-                    });
-                    return super.postMessage(message, ...rest);
-                }
-            }
-
-            Object.defineProperty(window, "Worker", {
-                configurable: true,
-                writable: true,
-                value: TrackingWorker,
-            });
-        });
+        await installTrackingWorker(page);
 
         page.on("pageerror", (error) => {
             pageErrors.push(error.message);
@@ -261,29 +243,7 @@ test.describe("Maze runtime smoke", () => {
         const pageErrors = [];
         const consoleErrors = [];
 
-        await page.addInitScript(() => {
-            const NativeWorker = window.Worker;
-            const outboundMessages = [];
-
-            window.__mazeWorkerOutboundMessages = outboundMessages;
-
-            class TrackingWorker extends NativeWorker {
-                postMessage(message, ...rest) {
-                    outboundMessages.push({
-                        requestId: message?.requestId ?? null,
-                        size: message?.size ?? null,
-                        type: message?.type ?? null,
-                    });
-                    return super.postMessage(message, ...rest);
-                }
-            }
-
-            Object.defineProperty(window, "Worker", {
-                configurable: true,
-                writable: true,
-                value: TrackingWorker,
-            });
-        });
+        await installTrackingWorker(page);
 
         page.on("pageerror", (error) => {
             pageErrors.push(error.message);
@@ -320,6 +280,155 @@ test.describe("Maze runtime smoke", () => {
         expect(lastMessage).toEqual({ requestId: expect.any(Number), size: 51, type: "generate" });
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
+    });
+
+    test("ignores forced generate events while path highlighting is active", async ({ page }) => {
+        const pageErrors = [];
+        const consoleErrors = [];
+
+        await installTrackingWorker(page);
+
+        page.on("pageerror", (error) => {
+            pageErrors.push(error.message);
+        });
+
+        page.on("console", (message) => {
+            if (message.type() === "error") {
+                consoleErrors.push(message.text());
+            }
+        });
+
+        await page.goto("/");
+        await waitForReadyState(page);
+
+        await page.evaluate(() => {
+            window.MazeAppConfig.ANIMATION_CONFIG.easy.pathBatchSize = 1;
+            window.MazeAppConfig.ANIMATION_CONFIG.easy.pathDelay = 20;
+        });
+
+        const baselineMessages = await page.evaluate(() => window.__mazeWorkerOutboundMessages.length);
+
+        await page.getByRole("button", { name: "Start Exploration" }).click();
+        await expect(page.locator("#status-text")).toHaveText("Highlighting Path...");
+
+        await page.evaluate(() => {
+            const generateButton = document.getElementById("generate-button");
+            for (let index = 0; index < 8; index += 1) {
+                generateButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            }
+        });
+
+        await page.waitForTimeout(200);
+
+        const outboundMessages = await page.evaluate(() => window.__mazeWorkerOutboundMessages);
+        const messagesAfterExploreStart = outboundMessages.slice(baselineMessages);
+        const generateMessagesAfterExploreStart = messagesAfterExploreStart.filter((message) => message.type === "generate");
+        const solveMessagesAfterExploreStart = messagesAfterExploreStart.filter((message) => message.type === "solve");
+
+        expect(solveMessagesAfterExploreStart.length).toBe(1);
+        expect(generateMessagesAfterExploreStart.length).toBe(0);
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
+
+    test("restores previous difficulty and maze state when difficulty change generation fails", async ({ page }) => {
+        const pageErrors = [];
+        const consoleErrors = [];
+
+        await page.addInitScript(() => {
+            const NativeWorker = window.Worker;
+
+            class FailSecondGenerateWorker {
+                constructor(url, options) {
+                    this.nativeWorker = new NativeWorker(url, options);
+                    this.listeners = {
+                        error: [],
+                        message: [],
+                    };
+                    this.generateCount = 0;
+
+                    this.nativeWorker.addEventListener("message", (event) => {
+                        this.emit("message", event);
+                    });
+                    this.nativeWorker.addEventListener("error", (event) => {
+                        this.emit("error", event);
+                    });
+                }
+
+                addEventListener(type, listener) {
+                    if (!(type in this.listeners)) {
+                        this.listeners[type] = [];
+                    }
+
+                    this.listeners[type].push(listener);
+                }
+
+                emit(type, event) {
+                    for (const listener of this.listeners[type] || []) {
+                        listener.call(this, event);
+                    }
+                }
+
+                postMessage(message, ...rest) {
+                    if (message?.type === "generate") {
+                        this.generateCount += 1;
+
+                        if (this.generateCount === 2) {
+                            setTimeout(() => {
+                                this.emit(
+                                    "message",
+                                    new MessageEvent("message", {
+                                        data: {
+                                            error: "Injected generate failure",
+                                            requestId: message.requestId,
+                                            type: "error",
+                                        },
+                                    }),
+                                );
+                            }, 0);
+                            return;
+                        }
+                    }
+
+                    return this.nativeWorker.postMessage(message, ...rest);
+                }
+            }
+
+            Object.defineProperty(window, "Worker", {
+                configurable: true,
+                writable: true,
+                value: FailSecondGenerateWorker,
+            });
+        });
+
+        page.on("pageerror", (error) => {
+            pageErrors.push(error.message);
+        });
+
+        page.on("console", (message) => {
+            if (message.type() === "error") {
+                consoleErrors.push(message.text());
+            }
+        });
+
+        await page.goto("/");
+        await waitForReadyState(page);
+
+        await expect(page.locator("#difficulty-text")).toHaveText("Easy");
+        await expect(page.locator("#grid-size-text")).toHaveText("25 x 25");
+        await expect(page.locator("#difficulty-select")).toHaveValue("easy");
+
+        await page.getByRole("combobox", { name: "Difficulty" }).selectOption("normal");
+
+        await expect(page.locator("#status-text")).toHaveText("Ready");
+        await expect(page.locator("#difficulty-text")).toHaveText("Easy");
+        await expect(page.locator("#grid-size-text")).toHaveText("25 x 25");
+        await expect(page.locator("#difficulty-select")).toHaveValue("easy");
+        await expect(page.locator("#explore-button")).toBeEnabled();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toContain("Maze worker task failed Injected generate failure");
     });
 
     test("degrades gracefully when Worker is unavailable", async ({ page }) => {

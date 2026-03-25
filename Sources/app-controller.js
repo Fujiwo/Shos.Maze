@@ -24,6 +24,8 @@
             this.elements = captureElements();
             this.renderer = new MazeRenderCanvas(this.elements.canvas, this.elements.stage);
             this.state = createInitialState(getStoredDifficulty());
+            this.requestSnapshot = null;
+            this.requestSnapshotKind = null;
             this.renderScheduler = createRenderScheduler(() => {
                 this.renderer.render(this.state);
             });
@@ -85,13 +87,15 @@
                 return;
             }
 
+            const previousSnapshot = this.captureRequestSnapshot();
             this.state.selectedDifficulty = value;
             persistDifficulty(this.state.selectedDifficulty);
-            this.startGenerateRequest();
+            this.startGenerateRequest(previousSnapshot);
         }
 
         handleGenerateRequestCompleted(message) {
             applyGenerateRequestResult(this.state, message);
+            this.clearRequestSnapshot();
             this.setStatus("ready");
             this.syncUI();
             this.requestRender();
@@ -115,6 +119,7 @@
             }
 
             this.setStatus("completed");
+            this.clearRequestSnapshot();
             this.syncUI();
             this.requestRender();
         }
@@ -124,23 +129,36 @@
             console.error(label, errorInfo.message);
 
             if (
+                this.requestSnapshotKind !== "generate" &&
+                this.requestSnapshotKind !== "solve" &&
                 this.state.currentStatus !== "generating" &&
                 this.state.currentStatus !== "exploring"
             ) {
                 return;
             }
 
-            this.setStatus("ready");
+            if (!this.restoreRequestSnapshot()) {
+                this.setStatus(this.state.mazeGrid ? "ready" : "idle");
+            }
+
+            this.clearRequestSnapshot();
             this.syncUI();
             this.requestRender();
         }
 
-        startGenerateRequest() {
+        startGenerateRequest(snapshotOverride = null) {
+            if (this.isInteractionLocked()) {
+                this.syncUI();
+                this.requestRender();
+                return 0;
+            }
+
+            this.rememberRequestSnapshot("generate", snapshotOverride);
             resetAnimationState(this.state);
             this.setStatus("generating");
             this.syncUI();
             this.requestRender();
-            this.workerRequestClient.startGenerateRequest(this.currentGenerateRequestGridSize());
+            return this.workerRequestClient.startGenerateRequest(this.currentGenerateRequestGridSize());
         }
 
         async startSolveRequest() {
@@ -151,12 +169,13 @@
                 return;
             }
 
+            this.rememberRequestSnapshot("solve");
             resetAnimationState(this.state);
             this.setStatus("exploring");
             this.syncUI();
             this.requestRender();
 
-            this.workerRequestClient.startSolveRequest({
+            return this.workerRequestClient.startSolveRequest({
                 grid: this.state.mazeGrid,
                 size: this.state.gridSize,
                 startId: this.state.startId,
@@ -190,6 +209,60 @@
 
         setStatus(status) {
             this.state.currentStatus = status;
+        }
+
+        isInteractionLocked() {
+            return (
+                this.state.currentStatus === "generating" ||
+                this.state.currentStatus === "exploring" ||
+                this.state.currentStatus === "highlighting"
+            );
+        }
+
+        captureRequestSnapshot() {
+            return {
+                currentStatus: this.state.currentStatus,
+                goalId: this.state.goalId,
+                gridSize: this.state.gridSize,
+                mazeGrid: this.state.mazeGrid,
+                renderedPathCount: this.state.renderedPathCount,
+                renderedVisitedCount: this.state.renderedVisitedCount,
+                selectedDifficulty: this.state.selectedDifficulty,
+                shortestPath: this.state.shortestPath,
+                startId: this.state.startId,
+                visitedCount: this.state.visitedCount,
+                visitedOrder: this.state.visitedOrder,
+            };
+        }
+
+        rememberRequestSnapshot(kind, snapshotOverride = null) {
+            this.requestSnapshotKind = kind;
+            this.requestSnapshot = snapshotOverride || this.captureRequestSnapshot();
+        }
+
+        restoreRequestSnapshot() {
+            if (!this.requestSnapshot) {
+                return false;
+            }
+
+            this.state.currentStatus = this.requestSnapshot.currentStatus;
+            this.state.goalId = this.requestSnapshot.goalId;
+            this.state.gridSize = this.requestSnapshot.gridSize;
+            this.state.mazeGrid = this.requestSnapshot.mazeGrid;
+            this.state.renderedPathCount = this.requestSnapshot.renderedPathCount;
+            this.state.renderedVisitedCount = this.requestSnapshot.renderedVisitedCount;
+            this.state.selectedDifficulty = this.requestSnapshot.selectedDifficulty;
+            this.state.shortestPath = this.requestSnapshot.shortestPath;
+            this.state.startId = this.requestSnapshot.startId;
+            this.state.visitedCount = this.requestSnapshot.visitedCount;
+            this.state.visitedOrder = this.requestSnapshot.visitedOrder;
+            persistDifficulty(this.state.selectedDifficulty);
+            return true;
+        }
+
+        clearRequestSnapshot() {
+            this.requestSnapshot = null;
+            this.requestSnapshotKind = null;
         }
 
         syncUI() {
