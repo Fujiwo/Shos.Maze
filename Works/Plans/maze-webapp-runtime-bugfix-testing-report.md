@@ -39,10 +39,10 @@
 - Explore 実行中に difficulty change を DOM 直操作で強制しても、新しい generate request が発行されず UI 整合性が保たれること
 
 ## 4. 実施した修正
-- Sources/worker-request-client.js に Worker 非対応時の防御処理を追加した
+- Sources/js/worker-request-client.js に Worker 非対応時の防御処理を追加した
 - Sources/index.html に favicon.svg の link 設定を追加した
 - Sources/favicon.svg を追加した
-- Sources/app-controller.js に、generating、exploring、highlighting 中の difficulty change を無効化する防御処理を追加した
+- Sources/js/app-controller.js に、generating、exploring、highlighting 中の difficulty change を無効化する防御処理を追加した
 
 ## 5. 現在の確認結果
 - npm run test:e2e が通過している

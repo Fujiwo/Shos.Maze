@@ -24,8 +24,8 @@
 - visitedOrder は必要に応じて拡張する `Int32Array` バッファ方式にした
 
 主な対象ファイル:
-- Sources/app-state.js
-- Sources/worker/worker-algorithms.js
+- Sources/js/app-state.js
+- Sources/js/worker/worker-algorithms.js
 
 ### 3.2 描画コストの削減
 - 迷路の静的部分を別 canvas にキャッシュし、毎回の全面再描画を避ける構成を導入した
@@ -34,8 +34,8 @@
 - `requestAnimationFrame` ベースの render scheduler を導入し、短時間の複数描画要求を 1 フレームへ集約した
 
 主な対象ファイル:
-- Sources/render-canvas.js
-- Sources/render-scheduler.js
+- Sources/js/render-canvas.js
+- Sources/js/render-scheduler.js
 
 ### 3.3 座標計算の事前キャッシュ
 - 各 cellId に対応する描画座標を事前計算し、描画時の row / col 算出を避けた
@@ -43,7 +43,7 @@
 - リサイズまたは gridSize 変更時のみ座標キャッシュを再生成するようにした
 
 主な対象ファイル:
-- Sources/render-canvas.js
+- Sources/js/render-canvas.js
 
 ### 3.4 バッチ描画と Path2D 利用
 - Path2D が利用可能な環境では、壁、通路、探索済みセル、最短経路をまとめて描画する方式を導入した
@@ -51,7 +51,7 @@
 - 大量セルの逐次描画回数を減らし、Super Hard での描画負荷を軽減した
 
 主な対象ファイル:
-- Sources/render-canvas.js
+- Sources/js/render-canvas.js
 
 ### 3.5 Worker への計算オフロード
 - 迷路生成と経路探索の重い処理を Web Worker 側へ移動した
@@ -59,9 +59,9 @@
 - Worker 未対応環境では graceful degradation として失敗扱いにし、UI 破綻を避けるようにした
 
 主な対象ファイル:
-- Sources/worker-request-client.js
-- Sources/worker-bootstrap.js
-- Sources/worker/worker-algorithms.js
+- Sources/js/worker-request-client.js
+- Sources/js/worker-bootstrap.js
+- Sources/js/worker/worker-algorithms.js
 
 ### 3.6 探索進行通知のバッチ化
 - 探索済みセルの進捗通知を 1 セル単位ではなく batch 単位で送る方式にした
@@ -69,8 +69,8 @@
 - Worker 側でも一定回数ごとに制御を返し、長時間占有を避ける構成にした
 
 主な対象ファイル:
-- Sources/app-config.js
-- Sources/worker/worker-algorithms.js
+- Sources/js/app-config.js
+- Sources/js/worker/worker-algorithms.js
 
 ### 3.7 探索アルゴリズム側の補助最適化
 - A* の open set を heap ベースで管理する構成を採用した
@@ -78,8 +78,8 @@
 - Manhattan distance を cellId から直接算出する構成へ整理した
 
 主な対象ファイル:
-- Sources/worker/worker-heap.js
-- Sources/worker/worker-algorithms.js
+- Sources/js/worker/worker-heap.js
+- Sources/js/worker/worker-algorithms.js
 
 ### 3.8 stale request の抑制
 - generate / solve の requestId を管理し、古い request の結果を UI 側へ反映しないようにした
@@ -87,8 +87,8 @@
 - 高速な difficulty 変更時でも、不要な古い生成結果で画面が揺り戻されないようにした
 
 主な対象ファイル:
-- Sources/worker-request-client.js
-- Sources/app-controller.js
+- Sources/js/worker-request-client.js
+- Sources/js/app-controller.js
 
 ## 4. 結果
 今回の高速化により、少なくとも設計上および現行実装上、以下の改善を実現した。
@@ -109,15 +109,15 @@
 - 主要 E2E テストが通過していること
 
 ## 6. 関連ファイル
-- Sources/app-config.js
-- Sources/app-state.js
-- Sources/app-controller.js
-- Sources/render-scheduler.js
-- Sources/render-canvas.js
-- Sources/worker-request-client.js
-- Sources/worker-bootstrap.js
-- Sources/worker/worker-heap.js
-- Sources/worker/worker-algorithms.js
+- Sources/js/app-config.js
+- Sources/js/app-state.js
+- Sources/js/app-controller.js
+- Sources/js/render-scheduler.js
+- Sources/js/render-canvas.js
+- Sources/js/worker-request-client.js
+- Sources/js/worker-bootstrap.js
+- Sources/js/worker/worker-heap.js
+- Sources/js/worker/worker-algorithms.js
 
 ## 7. 補足
 本レポートは、リファクタリング後の現行ファイル構成に合わせて整理している。

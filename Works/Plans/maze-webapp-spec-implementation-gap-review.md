@@ -10,7 +10,7 @@
 - idle と ready の扱いを整理し、実行時状態の意味を統一
 
 ## 変更ファイル
-- Sources/app-controller.js
+- Sources/js/app-controller.js
 - Tests/e2e/maze-runtime.spec.js
 
 ## 検証

@@ -56,11 +56,11 @@ Sources 配下を以下の責務層に分ける。
 ファイル名と公開名をできる限り一致させ、責務が推測できる命名に統一する。
 
 例:
-- app-config.js / MazeAppConfig
-- ui-dom.js / MazeUiDom
-- render-canvas.js / MazeRenderCanvas
-- worker-request-client.js / MazeWorkerRequestClient
-- worker-message-protocol.js / MazeWorkerMessageProtocol
+- js/app-config.js / MazeAppConfig
+- js/ui-dom.js / MazeUiDom
+- js/render-canvas.js / MazeRenderCanvas
+- js/worker-request-client.js / MazeWorkerRequestClient
+- js/worker-message-protocol.js / MazeWorkerMessageProtocol
 
 ### 4.3 実行モデル方針
 - ブラウザ側は classic script と defer を継続利用する
@@ -79,9 +79,9 @@ Sources 配下を以下の責務層に分ける。
 - renderer の切り出し
 
 想定成果物:
-- app-config.js
-- app-state.js
-- render-canvas.js
+- js/app-config.js
+- js/app-state.js
+- js/render-canvas.js
 
 ### 5.2 Phase 2: UI 関連の分離
 目的:
@@ -93,8 +93,8 @@ Sources 配下を以下の責務層に分ける。
 - UI 反映
 
 想定成果物:
-- ui-dom.js
-- ui-sync.js
+- js/ui-dom.js
+- js/ui-sync.js
 
 ### 5.3 Phase 3: Worker 通信の分離
 目的:
@@ -107,12 +107,12 @@ Sources 配下を以下の責務層に分ける。
 - worker bootstrap と worker helper の整理
 
 想定成果物:
-- worker-request-client.js
-- worker-message-protocol.js
-- worker-bootstrap.js
-- worker/worker-heap.js
-- worker/worker-messages.js
-- worker/worker-algorithms.js
+- js/worker-request-client.js
+- js/worker-message-protocol.js
+- js/worker-bootstrap.js
+- js/worker/worker-heap.js
+- js/worker/worker-messages.js
+- js/worker/worker-algorithms.js
 
 ### 5.4 Phase 4: 起動層の整理
 目的:
@@ -124,8 +124,8 @@ Sources 配下を以下の責務層に分ける。
 - main.js を bootstrap 相当へ縮小
 
 想定成果物:
-- app-controller.js
-- app-bootstrap.js
+- js/app-controller.js
+- js/app-bootstrap.js
 
 ### 5.5 Phase 5: 命名の統一
 目的:
@@ -149,6 +149,9 @@ Sources 配下を以下の責務層に分ける。
 ### 6.1 Sources 直下
 - index.html
 - style.css
+- favicon.svg
+
+### 6.2 Sources/js
 - worker-message-protocol.js
 - app-config.js
 - app-state.js
@@ -162,7 +165,7 @@ Sources 配下を以下の責務層に分ける。
 - app-bootstrap.js
 - worker-bootstrap.js
 
-### 6.2 Sources/worker
+### 6.3 Sources/js/worker
 - worker-heap.js
 - worker-messages.js
 - worker-algorithms.js
@@ -178,7 +181,7 @@ index.html における script 読み込み順は責務順で固定する。
 6. app controller
 7. app bootstrap
 
-worker-bootstrap.js における importScripts の順序は以下とする。
+js/worker-bootstrap.js における importScripts の順序は以下とする。
 
 1. worker-message-protocol.js
 2. worker/worker-heap.js
@@ -220,18 +223,18 @@ worker-bootstrap.js における importScripts の順序は以下とする。
 ### 11.2 対策
 - 段階的に rename を行う
 - 各段階で静的診断を行う
-- index.html と worker-bootstrap.js を依存順の単一ソースとして扱う
+- index.html と js/worker-bootstrap.js を依存順の単一ソースとして扱う
 - 役割名と公開名を揃える
 
 ## 12. 完了条件
-- Sources 配下の主責務が責務別ファイルへ分離されていること
+- Sources/js 配下の主責務が責務別ファイルへ分離されていること
 - ファイル名と公開名が概ね一致していること
 - index.html の読み込み順が責務順で整理されていること
 - worker 側の補助ファイル群が役割単位に分割されていること
 - main thread と Worker 双方で request-oriented な語彙が統一されていること
 
 ## 13. 実施結果の要約
-本計画に沿う形で、Sources 配下は単一大型ファイル構成から責務別構成へ整理された。
+本計画に沿う形で、Sources/js 配下は責務別構成へ整理された。
 
 主な到達点は以下。
 - AppController と bootstrap の分離
