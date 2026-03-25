@@ -6,6 +6,7 @@
 ![Vanilla JS](https://img.shields.io/badge/frontend-Vanilla%20JS-f7df1e?style=flat-square&logo=javascript&logoColor=222)
 ![Web Worker](https://img.shields.io/badge/compute-Web%20Worker-bb6c2f?style=flat-square)
 ![Playwright](https://img.shields.io/badge/tested%20with-Playwright-2ead33?style=flat-square&logo=playwright&logoColor=white)
+[![Live Demo](https://img.shields.io/badge/demo-live%20site-0a7f5a?style=flat-square&logo=googlechrome&logoColor=white)](https://www2.shos.info/shosmaze/)
 
 Shos.Maze is a browser-based maze generation and pathfinding visualization app. The implementation lives under Sources and is built with HTML, CSS, and Vanilla JavaScript. Maze generation, A* exploration, and shortest-path highlighting all run on the client side.
 
@@ -23,9 +24,17 @@ Shos.Maze is a 2D maze web app implemented as Maze Forge: Generator & Pathfindin
 
 The current implementation also includes large-maze performance work such as Canvas rendering, Web Worker offloading for heavy computation, diff-based drawing, and typed-array-backed data structures.
 
+## Demo
+
+Open the live page to try maze generation, exploration, and shortest-path highlighting in the browser without local setup.
+
+- Live page: https://www2.shos.info/shosmaze/
+
 ## Screenshot
 
 Initial screen after the app reaches the Ready state.
+
+[Open Demo](https://www2.shos.info/shosmaze/)
 
 | Desktop | Mobile |
 | --- | --- |
