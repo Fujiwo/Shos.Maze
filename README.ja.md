@@ -344,3 +344,20 @@ npm run test:e2e:debug
 - 仕様書は Specifications 配下にあります。
 - 開発計画、リファクタリング記録、性能改善記録、ランタイム修正とテスト記録は Works/Plans 配下にあります。
 - パフォーマンス改善では、1 次元 cellId 表現、typed array、静的レイヤーキャッシュ、差分描画、Path2D、Worker オフロード、request cancel が導入されています。
+
+## 著者
+
+Fujio Kojima: 日本のソフトウェア開発者
+* Microsoft MVP for Development Tools - Visual C# (Jul. 2005 - Dec. 2014)
+* Microsoft MVP for .NET (Jan. 2015 - Oct. 2015)
+* Microsoft MVP for Visual Studio and Development Technologies (Nov. 2015 - Jun. 2018)
+* Microsoft MVP for Developer Technologies (Nov. 2018 - Jun. 2026)
+* [MVP Profile](https://mvp.microsoft.com/en-US/mvp/profile/4185d172-3c9a-e411-93f2-9cb65495d3c4 "MVP Profile")
+* [Blog (Japanese)](http://wp.shos.info "Blog (Japanese)")
+* [Web Site (Japanese)](http://www.shos.info "Web Site (Japanese)")
+* [Twitter](https://twitter.com/Fujiwo)
+* [Instagram](https://www.instagram.com/fujiwo/)
+
+## ライセンス
+
+このプロジェクトは MIT License の下で提供されています。詳細は [LICENSE](LICENSE) を参照してください。
