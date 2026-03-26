@@ -156,6 +156,15 @@ Notes:
 ├─ README-assets/
 │  ├─ shos-maze-home-mobile.png
 │  └─ shos-maze-home.png
+├─ Dist/
+│  ├─ index.html
+│  ├─ style.css
+│  ├─ favicon.svg
+│  └─ js/
+│     ├─ main.min.js
+│     └─ worker-bootstrap.js
+├─ Scripts/
+│  └─ build-min.js
 ├─ Prompts/
 │  ├─ maze-webapp-prompt.md
 │  ├─ maze-webapp-prompt-summary.md
@@ -200,7 +209,9 @@ Notes:
 
 Main directory roles:
 
+- Dist: generated deployment artifacts for static hosting
 - Prompts: prompt records used for this repository
+- Scripts: repository automation such as minified distribution builds
 - Specifications: current formal specification
 - Sources: application source files
 - Tests: Playwright E2E tests and the local static server
@@ -221,7 +232,7 @@ Key files under Sources/js:
 
 ## Usage
 
-### 1. Run the app locally
+### 1. Check the Sources build locally
 
 Because the app uses Web Workers, local verification should be done through a static server. The repository already includes the lightweight server used by the test setup.
 
@@ -235,7 +246,33 @@ Then open:
 http://127.0.0.1:4173
 ```
 
-### 2. Basic flow
+### 2. Check the Dist build locally
+
+Build the minified distribution files first:
+
+```bash
+npm run build:min
+```
+
+Then serve Dist with either of the following commands:
+
+```bash
+npx serve ./Dist
+```
+
+or
+
+```bash
+node ./Tests/support/static-server.js Dist
+```
+
+If you use the repository's Node static server, open:
+
+```text
+http://127.0.0.1:4173
+```
+
+### 3. Basic flow
 
 1. A maze is generated automatically on initial load.
 2. Change the size with the Difficulty selector.
@@ -250,6 +287,30 @@ http://127.0.0.1:4173
 ```bash
 npm install
 ```
+
+### Build minified distribution files
+
+Generate the deployment-ready files under Dist.
+
+```bash
+npm run build:min
+```
+
+The command creates the following output:
+
+- Dist/index.html
+- Dist/js/main.min.js
+- Dist/js/worker-bootstrap.js
+- Dist/style.css
+- Dist/favicon.svg
+
+### Deploy the Dist folder
+
+Publish the contents of Dist as a static site.
+
+1. Run `npm run build:min`.
+2. Upload the files under Dist to your static hosting destination.
+3. Set the published entry page to Dist/index.html, or serve Dist as the site root.
 
 Install the Playwright browser once:
 

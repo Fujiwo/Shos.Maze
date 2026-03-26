@@ -148,6 +148,15 @@ flowchart TB
 ├─ README-assets/
 │  ├─ shos-maze-home-mobile.png
 │  └─ shos-maze-home.png
+├─ Dist/
+│  ├─ index.html
+│  ├─ style.css
+│  ├─ favicon.svg
+│  └─ js/
+│     ├─ main.min.js
+│     └─ worker-bootstrap.js
+├─ Scripts/
+│  └─ build-min.js
 ├─ Prompts/
 │  ├─ maze-webapp-prompt.md
 │  ├─ maze-webapp-prompt-summary.md
@@ -192,7 +201,9 @@ flowchart TB
 
 主要ディレクトリの役割は以下です。
 
+- Dist: 静的ホスティング向けに生成した配布物
 - Prompts: このリポジトリで使ったプロンプト類の記録
+- Scripts: minify 配布ビルドなどの自動化スクリプト
 - Specifications: 現行仕様書
 - Sources: アプリ本体
 - Tests: Playwright E2E と静的サーバー
@@ -213,7 +224,7 @@ Sources/js 配下の主要ファイルの役割は以下です。
 
 ## 利用方法
 
-### 1. アプリをローカルで確認する
+### 1. Sources 版をローカルで確認する
 
 このアプリは Web Worker を利用するため、ローカル確認は静的サーバー経由を前提にしてください。リポジトリにはテストでも使っている簡易サーバーが含まれています。
 
@@ -227,7 +238,33 @@ node ./Tests/support/static-server.js
 http://127.0.0.1:4173
 ```
 
-### 2. 基本操作
+### 2. Dist 版をローカルで確認する
+
+まず minify 済み配布ファイルを生成します。
+
+```bash
+npm run build:min
+```
+
+その後、以下のいずれかで Dist を配信します。
+
+```bash
+npx serve ./Dist
+```
+
+または
+
+```bash
+node ./Tests/support/static-server.js Dist
+```
+
+既存の Node 製静的サーバーを使う場合は、以下へアクセスします。
+
+```text
+http://127.0.0.1:4173
+```
+
+### 3. 基本操作
 
 1. 初期表示後、迷路が自動生成されます。
 2. Difficulty でサイズを切り替えます。
@@ -242,6 +279,30 @@ http://127.0.0.1:4173
 ```bash
 npm install
 ```
+
+### minify 済み配布ファイルの生成
+
+配布用のファイルを Dist 配下に生成します。
+
+```bash
+npm run build:min
+```
+
+このコマンドで以下が生成されます。
+
+- Dist/index.html
+- Dist/js/main.min.js
+- Dist/js/worker-bootstrap.js
+- Dist/style.css
+- Dist/favicon.svg
+
+### Dist 配布手順
+
+Dist 配下の内容を静的サイトとして公開してください。
+
+1. `npm run build:min` を実行します。
+2. Dist 配下のファイル群を静的ホスティング先へ配置します。
+3. Dist/index.html を公開エントリにするか、Dist をそのままサイトルートとして配信します。
 
 初回のみ Playwright のブラウザをインストールしてください。
 

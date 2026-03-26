@@ -4,7 +4,8 @@ const path = require("node:path");
 
 const host = "127.0.0.1";
 const port = 4173;
-const rootDir = path.resolve(__dirname, "../../Sources");
+const requestedRoot = process.argv[2] || "Sources";
+const rootDir = path.resolve(__dirname, "../../", requestedRoot);
 
 const contentTypes = {
     ".css": "text/css; charset=utf-8",
@@ -56,5 +57,5 @@ const server = http.createServer((request, response) => {
 });
 
 server.listen(port, host, () => {
-    process.stdout.write(`Static server listening on http://${host}:${port}\n`);
+    process.stdout.write(`Static server listening on http://${host}:${port} (root: ${rootDir})\n`);
 });
