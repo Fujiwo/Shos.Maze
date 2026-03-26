@@ -28,7 +28,7 @@ The current implementation also includes large-maze performance work such as Can
 
 Open the live page to try maze generation, exploration, and shortest-path highlighting in the browser without local setup.
 
-- Live page: https://www2.shos.info/shosmaze/
+- Live page: [https://www2.shos.info/shosmaze/](https://www2.shos.info/shosmaze/)
 
 ## Screenshot
 
